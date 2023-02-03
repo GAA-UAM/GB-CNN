@@ -1,4 +1,4 @@
-""" Deep - Gradient Boosted Neural Network """
+""" Gradient Boosted - Convolutional Neural Network """
 
 # Author: Seyedsaman Emami
 # Author: Gonzalo Martínez-Muñoz
@@ -7,46 +7,38 @@
 
 import keras
 import numpy as np
-from tqdm import tqdm
 import tensorflow as tf
+from abc import abstractmethod
 from ._base import BaseEstimator
 from ._losses import multi_class_loss
-from abc import abstractmethod
+from sklearn.utils.multiclass import check_classification_targets
 
 
 class BaseMultilayer(BaseEstimator):
 
-    def __init__(self,
-                 iter=50,
-                 eta=0.1,
-                 learning_rate=1e-3,
-                 total_nn=10,
-                 num_nn_step=1,
-                 batch_size=128,
-                 early_stopping=10,
-                 verbose=False,
-                 random_state=None
-                 ):
+    def __init__(self, config):
 
-        self.iter = iter
-        self.eta = eta
-        self.learning_rate = learning_rate
-        self.total_nn = total_nn
-        self.num_nn_step = num_nn_step
-        self.batch_size = batch_size
-        self.early_stopping = early_stopping
-        self.verbose = verbose
-        self.random_state = random_state
+        self.config = config
 
-    @abstractmethod
     def _validate_y(self, y):
-        """validate y and specify the loss function"""
+        check_classification_targets(y)
+        y = y.astype('int32')
+        return y
 
     def _early_stopping(self, monitor, patience):
         es = keras.callbacks.EarlyStopping(monitor=monitor,
                                            patience=patience,
                                            verbose=0)
         return es
+
+    def _optimizer(self):
+        opt = tf.keras.optimizers.Adam(learning_rate=self.config.learning_rate,
+                                       beta_1=0.9,
+                                       beta_2=0.999,
+                                       epsilon=1e-07,
+                                       amsgrad=False,
+                                       name="Adam")
+        return opt
 
     def _cnn(self, X, y):
 
@@ -62,21 +54,15 @@ class BaseMultilayer(BaseEstimator):
             128, activation='relu', kernel_initializer='he_uniform'))
         model.add(tf.keras.layers.Dense(10, activation='softmax'))
 
-        opt = tf.keras.optimizers.Adam(learning_rate=0.1,
-                                       beta_1=0.9,
-                                       beta_2=0.999,
-                                       epsilon=1e-07,
-                                       amsgrad=False,
-                                       name="Adam")
-
-        model.compile(optimizer=opt, loss='categorical_crossentropy',
+        model.compile(optimizer=self._optimizer(), loss='categorical_crossentropy',
                       metrics=['accuracy'])
 
         model.fit(X, y,
-                  batch_size=200,
-                  epochs=2,
+                  batch_size=self.config.batch_size,
+                  epochs=self.config.epoch,
                   verbose=1,
-                  callbacks=[self._early_stopping(monitor='loss', patience=5)])
+                  callbacks=[self._early_stopping(monitor='loss',
+                                                  patience=self.config.patience)])
 
         model.save("CNNs.h5")
 
@@ -96,8 +82,7 @@ class BaseMultilayer(BaseEstimator):
         self._check_params()
         self._lists_initialization()
 
-        T = int(self.total_nn/self.num_nn_step)
-        epochs = self.iter
+        T = int(self.config.boosting_epoch/self.config.unit)
 
         model = self._load_model(X, y)
 
@@ -106,19 +91,7 @@ class BaseMultilayer(BaseEstimator):
         self.intercept = _loss.model0(y)
         acum = np.ones_like(y) * self.intercept
 
-        patience = self.iter if not self.early_stopping else self.early_stopping
-        es = keras.callbacks.EarlyStopping(monitor="",
-                                           patience=patience,
-                                           verbose=0)
-
-        opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate,
-                                       beta_1=0.9,
-                                       beta_2=0.999,
-                                       epsilon=1e-07,
-                                       amsgrad=False,
-                                       name="Adam")
-
-        for i in tqdm(range(T)):
+        for _ in range(T):
 
             residuals = _loss.derive(y, acum)
 
@@ -134,21 +107,21 @@ class BaseMultilayer(BaseEstimator):
             model = tf.keras.models.Model(inputs=model.input, outputs=out)
 
             model.compile(loss="mean_squared_error",
-                          optimizer=opt,
+                          optimizer=self._optimizer(),
                           metrics=[tf.keras.metrics.MeanSquaredError()])
 
             model.fit(X, residuals,
                       batch_size=200,
                       epochs=10,
-                      verbose=self.verbose,
-                      callbacks=[self._early_stopping(
-                          monitor="mean_squared_error", patience=2)],
+                      verbose=1,
+                      callbacks=[self._early_stopping(monitor="mean_squared_error",
+                                                      patience=self.config.patience)]
                       )
 
             self._layer_freezing(model=model)
 
             pred = model.predict(X)
-            rho = self.eta * _loss.newton_step(y, residuals, pred)
+            rho = self.config.eta * _loss.newton_step(y, residuals, pred)
             acum = acum + rho * pred
 
             self._reg_score.append(model.evaluate(X,
@@ -181,15 +154,12 @@ class BaseMultilayer(BaseEstimator):
     def _check_params(self):
         """Check validity of parameters."""
 
-        if self.total_nn < self.num_nn_step:
+        if self.config.boosting_epoch < self.config.unit:
             raise ValueError(
-                f"Boosting number {self.total_nn} should be greater than the units {self.num_nn_step}.")
+                f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.unit}.")
 
-        if self.random_state is None:
-            raise ValueError("Expected `seed` argument to be an integer")
-        else:
-            tf.random.set_seed(self.random_state)
-            np.random.RandomState(self.random_state)
+        tf.random.set_seed(self.config.seed)
+        np.random.RandomState(self.config.seed)
 
     def _lists_initialization(self):
         self._reg_score = []
