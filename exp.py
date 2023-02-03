@@ -22,13 +22,13 @@ Y_test = np_utils.to_categorical(y_test, 10)
 model = GBCNN(random_state=2, total_nn=2)
 model.fit(X_train, Y_train)
 # %%
-pred= model.predict(X_test)
-
-# %%
 import numpy as np
 
+pred= model.predict(X_test)
+#%%
 np.unique(pred)
 
+#%%
 model.score(X_test, Y_test)
 # %%
 mo = tf.keras.models.load_model("CNNs.h5")

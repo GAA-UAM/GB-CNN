@@ -192,11 +192,14 @@ class BaseMultilayer(BaseEstimator):
             np.random.RandomState(self.random_state)
 
     def _lists_initialization(self):
-        self.layers = []
         self._reg_score = []
         self._loss_curve = []
         self._models = []
         self.steps = []
+
+    @abstractmethod
+    def predict(self, X):
+        """Return the predicted value"""
 
     @abstractmethod
     def predict_stage(self, X):
