@@ -6,11 +6,11 @@
 # Licence: GNU Lesser General Public License v2.1 (LGPL-2.1)
 
 import keras
-import _losses
 import numpy as np
 from tqdm import tqdm
 import tensorflow as tf
 from ._base import BaseEstimator
+from ._losses import multi_class_loss
 from abc import abstractmethod
 
 
@@ -20,7 +20,7 @@ class BaseMultilayer(BaseEstimator):
                  iter=50,
                  eta=0.1,
                  learning_rate=1e-3,
-                 total_nn=200,
+                 total_nn=10,
                  num_nn_step=1,
                  batch_size=128,
                  early_stopping=10,
@@ -42,69 +42,55 @@ class BaseMultilayer(BaseEstimator):
     def _validate_y(self, y):
         """validate y and specify the loss function"""
 
-    def _layer_freezing(self, model):
-        name = model.layers[-2].name
-        model.get_layer(name).trainable = False
-        self.layers.append(model.get_layer(name))
-        assert model.get_layer(
-            name).trainable == False, "The intermediate layer is not frozen!"
+    def _early_stopping(self, monitor, patience):
+        es = keras.callbacks.EarlyStopping(monitor=monitor,
+                                           patience=patience,
+                                           verbose=0)
+        return es
 
-    def _add(self, model, step):
-        self._models.append(model)
-        self.steps.append(step)
+    def _cnn(self, X, y):
 
-    def _regressor(self, X, name):
-        """Building the additive deep
-        regressor of the gradient boosting"""
+        model = tf.keras.Sequential()
+        model.add(tf.keras.layers.Conv2D(32, (3, 3), input_shape=X.shape[1:],
+                                         kernel_initializer='he_uniform', padding='same', activation='relu'))
+        model.add(tf.keras.layers.Conv2D(32, (3, 3), activation='relu',
+                                         kernel_initializer='he_uniform', padding='same'))
+        model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+        model.add(tf.keras.layers.Dropout(0.1))
+        model.add(tf.keras.layers.Flatten())
+        model.add(tf.keras.layers.Dense(
+            128, activation='relu', kernel_initializer='he_uniform'))
+        model.add(tf.keras.layers.Dense(10, activation='softmax'))
 
-        model = keras.models.Sequential(name=name)
+        opt = tf.keras.optimizers.Adam(learning_rate=0.1,
+                                       beta_1=0.9,
+                                       beta_2=0.999,
+                                       epsilon=1e-07,
+                                       amsgrad=False,
+                                       name="Adam")
 
-        # Normalizing the input
-        model.add(tf.keras.layers.Normalization(axis=-1))
+        model.compile(optimizer=opt, loss='categorical_crossentropy',
+                      metrics=['accuracy'])
 
-        # Build the Input Layer
-        # Input and flatten layers for Images dataset
-        if len(X.shape) > 3:
-            model.add(keras.layers.Dense(self.num_nn_step,
-                                         input_shape=X.shape[1:],
-                                         activation="relu"))
-            flatten_layer = keras.layers.Flatten()
+        model.fit(X, y,
+                  batch_size=200,
+                  epochs=2,
+                  verbose=1,
+                  callbacks=[self._early_stopping(monitor='loss', patience=5)])
 
-        # Input layer for tabular dataset
-        else:
-            model.add(keras.layers.Dense(self.num_nn_step,
-                                         input_dim=X.shape[1],
-                                         activation="relu"))
-        # Hidden Layers
-        # Empowering the network with frozen trained layers
-        for layer in self.layers:
-            # Importing frozen layers as the intermediate layers of the network
-            model.add(layer)
-
-        # Adds one new raw hidden layer with randomized weight
-        # get_weights()[0].shape == (self.num_nn_step, self.num_nn_step)
-        # get_weights()[1].shape == (self.num_nn_step)
-        layer = keras.layers.Dense(self.num_nn_step,
-                                   activation="relu")
-        layer.trainable = True
-        model.add(layer)
-
-        # Adding dropout layer after the last hidden layer
-        # model.add(keras.layers.Dropout(rate=0.1))
-
-        try:
-            model.add(flatten_layer)
-        except:
-            pass
-        # Output layers
-        model.add(keras.layers.Dense(self.n_classes))
-
-        assert model.trainable == True, "Check the model trainability"
-        assert model.layers[-2].trainable == True, "The new hidden layer should be trainable."
+        model.save("CNNs.h5")
 
         return model
 
+    def _load_model(self, X, y):
+        model = self._cnn(X, y)
+        for layer in model.layers:
+            layer.trainable = False
+        return model
+
     def fit(self, X, y):
+
+        _loss = multi_class_loss()
 
         y = self._validate_y(y)
         self._check_params()
@@ -113,11 +99,15 @@ class BaseMultilayer(BaseEstimator):
         T = int(self.total_nn/self.num_nn_step)
         epochs = self.iter
 
-        self.intercept = self._loss.model0(y)
+        model = self._load_model(X, y)
+
+        model.compile(loss="mean_squared_error", optimizer="adam")
+
+        self.intercept = _loss.model0(y)
         acum = np.ones_like(y) * self.intercept
 
         patience = self.iter if not self.early_stopping else self.early_stopping
-        es = keras.callbacks.EarlyStopping(monitor="mean_squared_error",
+        es = keras.callbacks.EarlyStopping(monitor="",
                                            patience=patience,
                                            verbose=0)
 
@@ -130,34 +120,52 @@ class BaseMultilayer(BaseEstimator):
 
         for i in tqdm(range(T)):
 
-            residuals = self._loss.derive(y, acum)
+            residuals = _loss.derive(y, acum)
 
-            model = self._regressor(X=X,
-                                    name=str(i)
-                                    )
+            # Get the output of the pre-trained model
+            out = model.layers[-2].output
+            # Add new dense layers
+            out = tf.keras.layers.Dense(units=64, activation="relu")(out)
+
+            # Add the final layer for prediction
+            out = tf.keras.layers.Dense(units=10)(out)
+
+            # Create a new model with the dense layers on top of the pre-trained model
+            model = tf.keras.models.Model(inputs=model.input, outputs=out)
 
             model.compile(loss="mean_squared_error",
                           optimizer=opt,
                           metrics=[tf.keras.metrics.MeanSquaredError()])
 
             model.fit(X, residuals,
-                      batch_size=self.batch_size,
-                      epochs=epochs,
+                      batch_size=200,
+                      epochs=10,
                       verbose=self.verbose,
-                      callbacks=[es],
+                      callbacks=[self._early_stopping(
+                          monitor="mean_squared_error", patience=2)],
                       )
 
             self._layer_freezing(model=model)
 
             pred = model.predict(X)
-            rho = self.eta * self._loss.newton_step(y, residuals, pred)
+            rho = self.eta * _loss.newton_step(y, residuals, pred)
             acum = acum + rho * pred
 
             self._reg_score.append(model.evaluate(X,
                                                   residuals,
                                                   verbose=0)[1])
-            self._loss_curve.append(np.mean(self._loss(y, acum)))
+            self._loss_curve.append(np.mean(_loss(y, acum)))
             self._add(model, rho)
+
+    def _layer_freezing(self, model):
+        name = model.layers[-2].name
+        model.get_layer(name).trainable = False
+        assert model.get_layer(
+            name).trainable == False, "The intermediate dense layer is not frozen!"
+
+    def _add(self, model, step):
+        self._models.append(model)
+        self.steps.append(step)
 
     def decision_function(self, X):
 
@@ -198,17 +206,7 @@ class BaseMultilayer(BaseEstimator):
     def score(self, X, y):
         """Return the score (accuracy for classification and aRMSE for regression)"""
 
-    def _plot_model(self, model=-1, path="model.eps"):
-        "Returns the plot of the t-th model in the boosting iteration"
-        "The default value would be the final built model"
-        tf.keras.utils.plot_model(self._models[model],
-                                  to_file=path,
-                                  show_shapes=True,
-                                  dpi=700)
-
-    def _clear_session(self):
+    @classmethod
+    def _clear_session(cls):
         """Clear the global state from stored models"""
         tf.keras.backend.clear_session()
-
-
-
