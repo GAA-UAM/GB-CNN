@@ -38,9 +38,9 @@ class BaseEstimator(Params):
         return y
 
     def _early_stopping(self, monitor, patience):
-        es = tf.keras.callbacks.callbacks.EarlyStopping(monitor=monitor,
-                                           patience=patience,
-                                           verbose=0)
+        es = tf.keras.callbacks.EarlyStopping(monitor=monitor,
+                                              patience=patience,
+                                              verbose=0)
         return es
 
     def _optimizer(self):
@@ -81,7 +81,8 @@ class BaseEstimator(Params):
 
         model.save("CNN.h5")
         self.log_fh.warning("Pre-Trained CNN is saved (.h5)")
-        self.log_fh.info("CNN acc on original data: {0:.3f}".format(model.evaluate(X, y, verbose=0)[1]))
+        self.log_fh.info("CNN acc on original data: {0:.3f}".format(
+            model.evaluate(X, y, verbose=0)[1]))
         return model
 
     def fit(self, X, y):
@@ -144,13 +145,12 @@ class BaseEstimator(Params):
             self._add(model, rho)
 
             self.log_fh.info("      Additive model-MSE: {0:.7f}".format(model.evaluate(X,
-                                                                                 residuals,
-                                                                                 verbose=0)[1]))
+                                                                                       residuals,
+                                                                                       verbose=0)[1]))
             loss_curve = np.mean(_loss(y, acum))
             self.log_fh.info(
                 "       Gradient Loss: {0:.5f}".format(loss_curve))
             self._loss_curve.append(loss_curve)
-
 
     def _layer_freezing(self, model):
         name = model.layers[-2].name
