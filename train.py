@@ -22,20 +22,26 @@ Y_test = np_utils.to_categorical(y_test, 10)
 
 model = GBCNN(config=get_config())
 params = {'config': Namespace(seed=111,
-                              epoch=2,
-                              learning_rate=0.001,
-                              batch_size=128,
-                              patience=3,
-                              boosting_epoch=2,
-                              additive_epoch=2,
-                              batch_size_gb=128,
-                              unit=1,
-                              eta=0.1)}
+                              cnn_epoch=200,
+                              cnn_eta=1e-3,
+                              cnn_batch_size=256,
+                              cnn_patience=3,
+                              boosting_epoch=200,
+                              boosting_eta=1e-1,
+                              fine_tune_epoch=100,
+                              fine_tune_batch=64,
+                              fine_tune_units=10,
+                              fine_tune_eta=1e-1,
+                              fine_tune_patience=7,
+                              )
+                              }
 
-params['config'].epoch = 5
-params['config'].boosting_epoch = 20
-params['config'].unit = 5
-model.set_params(**params)
-print(model.get_params())
+# params['config'].cnn_epoch = 1
+# params['config'].boosting_epoch = 1
+# params['config'].fine_tune_units = 1
+# params['config'].boosting_epoch = 1
+# params['config'].fine_tune_epoch = 1
+# model.set_params(**params)
+# print(model.get_params())
 model.fit(X_train, Y_train)
 print(f"MODEL SCORE:{model.score(X_test, y_test)}")

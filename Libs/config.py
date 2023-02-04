@@ -27,19 +27,26 @@ general_arg.add_argument('--seed', type=int, default=111)
 
 # CNN args
 cnn_arg = add_arg_group("CNN")
-cnn_arg.add_argument('--epoch', type=int, default=2)
-cnn_arg.add_argument('--learning_rate', type=float, default=1e-3)
-cnn_arg.add_argument('--batch_size', type=int, default=128)
-cnn_arg.add_argument('--patience', type=int, default=3)
+cnn_arg.add_argument('--cnn_epoch', type=int, default=200)
+cnn_arg.add_argument('--cnn_eta', type=float, default=1e-3)
+cnn_arg.add_argument('--cnn_batch_size', type=int, default=256)
+cnn_arg.add_argument('--cnn_patience', type=int, default=3)
 
 
 # GB args
 gb_arg = add_arg_group("GB")
-gb_arg.add_argument('--boosting_epoch', type=int, default=2)
-gb_arg.add_argument('--additive_epoch', type=int, default=2)
-gb_arg.add_argument('--batch_size_gb', type=int, default=128)
-gb_arg.add_argument('--unit', type=int, default=1)
-gb_arg.add_argument('--eta', type=float, default=1e-1)
+gb_arg.add_argument('--boosting_epoch', type=int, default=200)
+gb_arg.add_argument('--boosting_eta', type=float, default=1e-1)
+
+
+# fine_tune args
+ft_arg = add_arg_group("Fine_Tune")
+ft_arg.add_argument('--fine_tune_epoch', type=int, default=100)
+ft_arg.add_argument('--fine_tune_batch', type=int, default=64)
+ft_arg.add_argument('--fine_tune_units', type=int, default=10)
+ft_arg.add_argument('--fine_tune_eta', type=float, default=1e-1)
+ft_arg.add_argument('--fine_tune_patience', type=int, default=7)
+
 
 def get_config():
     # args = parser.parse_args()

@@ -43,13 +43,25 @@ class BaseEstimator(Params):
                                               verbose=0)
         return es
 
-    def _optimizer(self):
-        opt = tf.keras.optimizers.Adam(learning_rate=self.config.learning_rate,
-                                       beta_1=0.9,
-                                       beta_2=0.999,
-                                       epsilon=1e-07,
-                                       amsgrad=False,
-                                       name="Adam")
+    def _optimizer(self, eta=1e-3, decay=False):
+
+        if decay:
+            initial_learning_rate = eta
+            eta = tf.keras.optimizers.schedules.ExponentialDecay(
+                initial_learning_rate,
+                decay_steps=500,
+                decay_rate=0.96,
+                staircase=True)
+
+
+        opt = tf.keras.optimizers.Adam(
+            learning_rate=eta,
+            beta_1=0.9,
+            beta_2=0.999,
+            epsilon=1e-07,
+            amsgrad=False,
+            name="Adam")
+
         return opt
 
     def _cnn(self, X, y):
@@ -66,18 +78,18 @@ class BaseEstimator(Params):
             128, activation='relu', kernel_initializer='he_uniform'))
         model.add(tf.keras.layers.Dense(y.shape[1], activation='softmax'))
 
-        model.compile(optimizer=self._optimizer(), loss='categorical_crossentropy',
+        model.compile(optimizer=self._optimizer(eta=self.config.cnn_eta), loss='categorical_crossentropy',
                       metrics=['accuracy'])
 
         self.log_fh.info("CNN training")
         self.log_sh.info(model.summary())
 
         model.fit(X, y,
-                  batch_size=self.config.batch_size,
-                  epochs=self.config.epoch,
+                  batch_size=self.config.cnn_batch_size,
+                  epochs=self.config.cnn_epoch,
                   verbose=1,
                   callbacks=[self._early_stopping(monitor='loss',
-                                                  patience=self.config.patience)])
+                                                  patience=self.config.cnn_patience)])
 
         model.save("CNN.h5")
         self.log_fh.warning("Pre-Trained CNN is saved (.h5)")
@@ -93,13 +105,11 @@ class BaseEstimator(Params):
         self._check_params()
         self._lists_initialization()
 
-        T = int(self.config.boosting_epoch/self.config.unit)
+        T = int(self.config.boosting_epoch/self.config.fine_tune_units)
 
         model = self._cnn(X, y)
-        for layer in model.layers:
-            layer.trainable = False
-
-        model.compile(loss="mean_squared_error", optimizer="adam")
+        # for layer in model.layers:
+        #     layer.trainable = False
 
         self.intercept = _loss.model0(y)
         acum = np.ones_like(y) * self.intercept
@@ -108,7 +118,7 @@ class BaseEstimator(Params):
 
         for epoch in range(T):
 
-            self.log_fh.info(f"Epoch: {epoch} out of {T-1}")
+            self.log_fh.info(f"Epoch: {epoch+1} out of {T}")
 
             residuals = _loss.derive(y, acum)
 
@@ -116,7 +126,7 @@ class BaseEstimator(Params):
             out = model.layers[-2].output
             # Add new dense layers
             out = tf.keras.layers.Dense(
-                units=self.config.unit, activation="relu")(out)
+                units=self.config.fine_tune_units, activation="relu")(out)
             # Add the final layer for prediction
             out = tf.keras.layers.Dense(units=y.shape[1])(out)
 
@@ -124,23 +134,25 @@ class BaseEstimator(Params):
             model = tf.keras.models.Model(inputs=model.input, outputs=out)
 
             model.compile(loss="mean_squared_error",
-                          optimizer=self._optimizer(),
+                          optimizer=self._optimizer(
+                              eta=self.config.fine_tune_eta, decay=True),
                           metrics=[tf.keras.metrics.MeanSquaredError()])
 
             self.log_sh.info(model.summary())
 
             model.fit(X, residuals,
-                      batch_size=200,
-                      epochs=self.config.additive_epoch,
+                      batch_size=self.config.fine_tune_batch,
+                      epochs=self.config.fine_tune_epoch,
                       verbose=1,
                       callbacks=[self._early_stopping(monitor="mean_squared_error",
-                                                      patience=self.config.patience)]
+                                                      patience=self.config.fine_tune_patience)]
                       )
 
             self._layer_freezing(model=model)
 
             pred = model.predict(X)
-            rho = self.config.eta * _loss.newton_step(y, residuals, pred)
+            rho = self.config.boosting_eta * \
+                _loss.newton_step(y, residuals, pred)
             acum = acum + rho * pred
             self._add(model, rho)
 
@@ -176,17 +188,23 @@ class BaseEstimator(Params):
     def _check_params(self):
         """Check validity of parameters."""
 
-        if self.config.boosting_epoch < self.config.unit:
+        if self.config.boosting_epoch < self.config.fine_tune_units:
             raise ValueError(
                 f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.unit}.")
 
         tf.random.set_seed(self.config.seed)
         np.random.RandomState(self.config.seed)
+        np.set_printoptions(precision=7, suppress=True)
 
     def _lists_initialization(self):
         self._loss_curve = []
         self._models = []
         self.steps = []
+
+    def score_cnn(self, X, y):
+        model = tf.keras.models.load_model(glob.glob("*h5")[0])
+        score = model.evaluate(X, y, verbose=0)
+        return score
 
     @abstractmethod
     def predict(self, X):
