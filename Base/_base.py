@@ -13,6 +13,7 @@ from ._params import Params
 from ._losses import multi_class_loss
 from Libs._logging import FileHandler, StreamHandler
 
+from ._cnn import _layers
 from abc import abstractmethod
 from sklearn.utils.multiclass import check_classification_targets
 
@@ -53,7 +54,6 @@ class BaseEstimator(Params):
                 decay_rate=0.96,
                 staircase=True)
 
-
         opt = tf.keras.optimizers.Adam(
             learning_rate=eta,
             beta_1=0.9,
@@ -64,22 +64,14 @@ class BaseEstimator(Params):
 
         return opt
 
-    def _cnn(self, X, y):
+    def _cnn_model(self, X, y):
 
-        model = tf.keras.Sequential()
-        model.add(tf.keras.layers.Conv2D(32, (3, 3), input_shape=X.shape[1:],
-                                         kernel_initializer='he_uniform', padding='same', activation='relu'))
-        model.add(tf.keras.layers.Conv2D(32, (3, 3), activation='relu',
-                                         kernel_initializer='he_uniform', padding='same'))
-        model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-        model.add(tf.keras.layers.Dropout(0.1))
-        model.add(tf.keras.layers.Flatten())
-        model.add(tf.keras.layers.Dense(
-            128, activation='relu', kernel_initializer='he_uniform'))
-        model.add(tf.keras.layers.Dense(y.shape[1], activation='softmax'))
+        model = _layers(X=X, y=y)
 
-        model.compile(optimizer=self._optimizer(eta=self.config.cnn_eta), loss='categorical_crossentropy',
-                      metrics=['accuracy'])
+        model.compile(optimizer=self._optimizer(eta=self.config.cnn_eta),
+                      loss='categorical_crossentropy',
+                      metrics=['accuracy']
+                      )
 
         self.log_fh.info("CNN training")
         self.log_sh.info(model.summary())
@@ -105,9 +97,9 @@ class BaseEstimator(Params):
         self._check_params()
         self._lists_initialization()
 
-        T = int(self.config.boosting_epoch/self.config.fine_tune_units)
+        T = int(self.config.boosting_epoch/self.config.additive_units)
 
-        model = self._cnn(X, y)
+        model = self._cnn_model(X, y)
         # for layer in model.layers:
         #     layer.trainable = False
 
@@ -126,7 +118,7 @@ class BaseEstimator(Params):
             out = model.layers[-2].output
             # Add new dense layers
             out = tf.keras.layers.Dense(
-                units=self.config.fine_tune_units, activation="relu")(out)
+                units=self.config.additive_units, activation="relu")(out)
             # Add the final layer for prediction
             out = tf.keras.layers.Dense(units=y.shape[1])(out)
 
@@ -135,17 +127,17 @@ class BaseEstimator(Params):
 
             model.compile(loss="mean_squared_error",
                           optimizer=self._optimizer(
-                              eta=self.config.fine_tune_eta, decay=True),
+                              eta=self.config.additive_eta, decay=False),
                           metrics=[tf.keras.metrics.MeanSquaredError()])
 
             self.log_sh.info(model.summary())
 
             model.fit(X, residuals,
-                      batch_size=self.config.fine_tune_batch,
-                      epochs=self.config.fine_tune_epoch,
+                      batch_size=self.config.additive_batch,
+                      epochs=self.config.additive_epoch,
                       verbose=1,
                       callbacks=[self._early_stopping(monitor="mean_squared_error",
-                                                      patience=self.config.fine_tune_patience)]
+                                                      patience=self.config.additive_patience)]
                       )
 
             self._layer_freezing(model=model)
@@ -188,7 +180,7 @@ class BaseEstimator(Params):
     def _check_params(self):
         """Check validity of parameters."""
 
-        if self.config.boosting_epoch < self.config.fine_tune_units:
+        if self.config.boosting_epoch < self.config.additive_units:
             raise ValueError(
                 f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.unit}.")
 

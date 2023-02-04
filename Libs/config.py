@@ -10,7 +10,6 @@ import argparse
 arg_list = []
 parser = argparse.ArgumentParser()
 
-
 def add_arg_group(name):
     arg = parser.add_argument_group(name)
     arg_list.append(arg)
@@ -28,7 +27,7 @@ general_arg.add_argument('--seed', type=int, default=111)
 # CNN args
 cnn_arg = add_arg_group("CNN")
 cnn_arg.add_argument('--cnn_epoch', type=int, default=200)
-cnn_arg.add_argument('--cnn_eta', type=float, default=1e-3)
+cnn_arg.add_argument('--cnn_eta', type=float, default=1e-1)
 cnn_arg.add_argument('--cnn_batch_size', type=int, default=256)
 cnn_arg.add_argument('--cnn_patience', type=int, default=3)
 
@@ -40,12 +39,12 @@ gb_arg.add_argument('--boosting_eta', type=float, default=1e-1)
 
 
 # fine_tune args
-ft_arg = add_arg_group("Fine_Tune")
-ft_arg.add_argument('--fine_tune_epoch', type=int, default=100)
-ft_arg.add_argument('--fine_tune_batch', type=int, default=64)
-ft_arg.add_argument('--fine_tune_units', type=int, default=10)
-ft_arg.add_argument('--fine_tune_eta', type=float, default=1e-1)
-ft_arg.add_argument('--fine_tune_patience', type=int, default=7)
+ft_arg = add_arg_group("additive_model")
+ft_arg.add_argument('--additive_epoch', type=int, default=100)
+ft_arg.add_argument('--additive_batch', type=int, default=64)
+ft_arg.add_argument('--additive_units', type=int, default=10)
+ft_arg.add_argument('--additive_eta', type=float, default=1e-3)
+ft_arg.add_argument('--additive_patience', type=int, default=7)
 
 
 def get_config():

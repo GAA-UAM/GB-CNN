@@ -21,27 +21,24 @@ Y_train = np_utils.to_categorical(y_train, 10)
 Y_test = np_utils.to_categorical(y_test, 10)
 
 model = GBCNN(config=get_config())
-params = {'config': Namespace(seed=111,
-                              cnn_epoch=200,
-                              cnn_eta=1e-3,
-                              cnn_batch_size=256,
-                              cnn_patience=3,
-                              boosting_epoch=200,
-                              boosting_eta=1e-1,
-                              fine_tune_epoch=100,
-                              fine_tune_batch=64,
-                              fine_tune_units=10,
-                              fine_tune_eta=1e-1,
-                              fine_tune_patience=7,
-                              )
-                              }
 
-# params['config'].cnn_epoch = 1
-# params['config'].boosting_epoch = 1
-# params['config'].fine_tune_units = 1
-# params['config'].boosting_epoch = 1
-# params['config'].fine_tune_epoch = 1
-# model.set_params(**params)
-# print(model.get_params())
+params = {'config': Namespace(seed=111,
+                              cnn_epoch=2,
+                              cnn_eta=1e-3,
+                              cnn_batch_size=128,
+                              cnn_patience=4,
+                              boosting_epoch=10,
+                              boosting_eta=1e-3,
+                              additive_epoch=20,
+                              additive_batch=128,
+                              additive_units=10,
+                              additive_eta=1e-3,
+                              additive_patience=10)}
+
+model.set_params(**params)
+print(model.get_params())
 model.fit(X_train, Y_train)
-print(f"MODEL SCORE:{model.score(X_test, y_test)}")
+
+
+print(f"GB-CNN SCORE:{model.score(X_test, y_test)}")
+print(f"CNN--Score{model.score_cnn(X_test, Y_test)[1]}")
