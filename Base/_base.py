@@ -7,7 +7,6 @@
 
 import os
 import glob
-import keras
 import numpy as np
 import tensorflow as tf
 from ._params import Params
@@ -39,7 +38,7 @@ class BaseEstimator(Params):
         return y
 
     def _early_stopping(self, monitor, patience):
-        es = keras.callbacks.EarlyStopping(monitor=monitor,
+        es = tf.keras.callbacks.callbacks.EarlyStopping(monitor=monitor,
                                            patience=patience,
                                            verbose=0)
         return es
