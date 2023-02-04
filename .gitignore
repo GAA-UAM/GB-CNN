@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # Tensorflow saved models
-/*.h5
+/CNN.h5
