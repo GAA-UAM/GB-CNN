@@ -6,11 +6,11 @@
 # Licence: GNU Lesser General Public License v2.1 (LGPL-2.1)
 
 import numpy as np
-from Base import BaseMultilayer
+from Base import BaseEstimator
 from Base._losses import multi_class_loss
 
 
-class GBCNN(BaseMultilayer):
+class GBCNN(BaseEstimator):
 
     def __init__(self, config):
 
@@ -23,8 +23,10 @@ class GBCNN(BaseMultilayer):
         return np.argmax(probs, axis=1)
 
     def predict(self, X):
-        pred = self.predict_proba(X)
-        return self._predict(pred)
+        pred_ = self.predict_proba(X)
+        pred = self._predict(pred_)
+        print (np.unique(pred))
+        return pred
 
     def predict_stage(self, X):
         raw_predictions = self._pred

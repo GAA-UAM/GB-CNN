@@ -1,4 +1,4 @@
-""" Loss functions for Deep Gradient Boosted Neural Network """
+""" Loss functions for Gradient Boosted Convolutional Neural Network """
 
 # Author: Seyedsaman Emami
 # Author: Gonzalo Martínez-Muñoz
@@ -6,6 +6,7 @@
 # Licence: GNU Lesser General Public License v2.1 (LGPL-2.1)
 
 import numpy as np
+
 from abc import abstractmethod
 from scipy.special import logsumexp
 

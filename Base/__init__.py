@@ -1,8 +1,8 @@
-from ._base import BaseEstimator
+from ._params import Params
 from ._losses import multi_class_loss
-from ._multilayer import BaseMultilayer
+from ._base import BaseEstimator
 
-__all__ = ["BaseEstimator",
+__all__ = ["Params",
            "multi_class_loss",
-           "BaseMultilayer"
+           "BaseEstimator"
            ]
