@@ -132,3 +132,4 @@ dmypy.json
 
 # Tensorflow saved models
 /CNN.h5
+/*.h5

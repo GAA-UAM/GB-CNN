@@ -207,10 +207,10 @@ class BaseEstimator(Params):
         self._models = []
         self.steps = []
 
-    def drop_model(self, num=-1):
+    def dumping(self, num=-1):
         """Dump the trained GB_CNN model. -1 returns the final trained model."""
         model = self._models[num]
-        model.save(str(num) + "_GB_CNN.h5")
+        model.save(model.name + "_GB_CNN.h5")
 
     def score_cnn(self, X, y):
         assert len(y.shape) == 2, "input shape is not valid"
