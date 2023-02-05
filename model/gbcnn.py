@@ -37,5 +37,7 @@ class GBCNN(BaseEstimator):
             yield pred
 
     def score(self, X, y):
+        assert len(y.shape) == 2, "input shape is not valid"
+        y = [np.argmax(yy, axis=None, out=None) for yy in y]
         score = y == self.predict(X)
         return np.mean(score)

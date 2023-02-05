@@ -194,6 +194,7 @@ class BaseEstimator(Params):
         self.steps = []
 
     def score_cnn(self, X, y):
+        assert len(y.shape) == 2, "input shape is not valid"
         model = tf.keras.models.load_model(glob.glob("*h5")[0])
         score = model.evaluate(X, y, verbose=0)
         return score
@@ -208,7 +209,8 @@ class BaseEstimator(Params):
 
     @abstractmethod
     def score(self, X, y):
-        """Return the score (accuracy for classification and aRMSE for regression)"""
+        """Return the score of the GB-CNN model"""
+
 
     @classmethod
     def _clear_session(cls):
