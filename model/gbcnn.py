@@ -25,7 +25,6 @@ class GBCNN(BaseEstimator):
     def predict(self, X):
         pred_ = self.predict_proba(X)
         pred = self._predict(pred_)
-        print (np.unique(pred))
         return pred
 
     def predict_stage(self, X):

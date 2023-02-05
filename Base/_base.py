@@ -33,12 +33,8 @@ class BaseEstimator(Params):
             self.log_fh.warning(
                 "The previously saved log file has been deleted!")
 
-    def _validate_y(self, y):
-        check_classification_targets(y)
-        y = y.astype('int32')
-        return y
 
-    def _early_stopping(self, monitor, patience):
+    def _cnn_es(self, monitor, patience):
         es = tf.keras.callbacks.EarlyStopping(monitor=monitor,
                                               patience=patience,
                                               verbose=0)
@@ -64,6 +60,13 @@ class BaseEstimator(Params):
 
         return opt
 
+    def _boosting_es(self, loss, min_loss, patience):
+        counter = 0
+        if loss > min_loss:
+            counter += 1
+            if counter >= patience:
+                return True
+
     def _cnn_model(self, X, y):
 
         model = _layers(X=X, y=y)
@@ -80,7 +83,7 @@ class BaseEstimator(Params):
                   batch_size=self.config.cnn_batch_size,
                   epochs=self.config.cnn_epoch,
                   verbose=1,
-                  callbacks=[self._early_stopping(monitor='loss',
+                  callbacks=[self._cnn_es(monitor='loss',
                                                   patience=self.config.cnn_patience)])
 
         model.save("CNN.h5")
@@ -136,7 +139,7 @@ class BaseEstimator(Params):
                       batch_size=self.config.additive_batch,
                       epochs=self.config.additive_epoch,
                       verbose=1,
-                      callbacks=[self._early_stopping(monitor="mean_squared_error",
+                      callbacks=[self._cnn_es(monitor="mean_squared_error",
                                                       patience=self.config.additive_patience)]
                       )
 
@@ -151,10 +154,15 @@ class BaseEstimator(Params):
             self.log_fh.info("      Additive model-MSE: {0:.7f}".format(model.evaluate(X,
                                                                                        residuals,
                                                                                        verbose=0)[1]))
-            loss_curve = np.mean(_loss(y, acum))
+            loss_mean = np.mean(_loss(y, acum))
             self.log_fh.info(
-                "       Gradient Loss: {0:.5f}".format(loss_curve))
-            self._loss_curve.append(loss_curve)
+                "       Gradient Loss: {0:.5f}".format(loss_mean))
+            self._loss_curve.append(loss_mean)
+
+            if self._boosting_es(loss_mean, np.min(self._loss_curve), self.config.boosting_patience):
+                self.log_fh.warning(
+                    "Boosting training is stopped (Early stopping)")
+                break
 
     def _layer_freezing(self, model):
         name = model.layers[-2].name
@@ -177,6 +185,12 @@ class BaseEstimator(Params):
 
         return raw_predictions
 
+    def _validate_y(self, y):
+        check_classification_targets(y)
+        assert len(y.shape) == 2, "input shape is not valid!"
+        y = y.astype('int32')
+        return y
+
     def _check_params(self):
         """Check validity of parameters."""
 
@@ -192,6 +206,11 @@ class BaseEstimator(Params):
         self._loss_curve = []
         self._models = []
         self.steps = []
+
+    def drop_model(self, num=-1):
+        """Dump the trained GB_CNN model. -1 returns the final trained model."""
+        model = self._models[num]
+        model.save(str(num) + "_GB_CNN.h5")
 
     def score_cnn(self, X, y):
         assert len(y.shape) == 2, "input shape is not valid"
@@ -210,7 +229,6 @@ class BaseEstimator(Params):
     @abstractmethod
     def score(self, X, y):
         """Return the score of the GB-CNN model"""
-
 
     @classmethod
     def _clear_session(cls):
