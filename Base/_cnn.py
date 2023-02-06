@@ -32,8 +32,5 @@ def _layers(X, y):
     model.add(tf.keras.layers.Dropout(0.4))
 
     model.add(tf.keras.layers.Flatten())
-    model.add(tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform'))
-    model.add(tf.keras.layers.BatchNormalization())
     model.add(tf.keras.layers.Dense(y.shape[1], activation='softmax'))
-
     return model
