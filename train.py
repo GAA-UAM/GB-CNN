@@ -1,4 +1,3 @@
-# %%
 from argparse import Namespace
 from model.gbcnn import GBCNN
 import tensorflow as tf
@@ -23,16 +22,12 @@ Y_test = np_utils.to_categorical(y_test, 10)
 model = GBCNN(config=get_config())
 
 params = {'config': Namespace(seed=111,
-                              cnn_epoch=1,
-                              cnn_eta=1e-3,
-                              cnn_batch_size=128,
-                              cnn_patience=2,
-                              boosting_epoch=10,
+                              boosting_epoch=200,
                               boosting_eta=1e-3,
                               boosting_patience=2,
-                              additive_epoch=1,
-                              additive_batch=200,
-                              additive_units=5,
+                              additive_epoch=150,
+                              additive_batch=128,
+                              additive_units=20,
                               additive_eta=1e-2,
                               additive_patience=2)}
 
@@ -40,5 +35,6 @@ model.set_params(**params)
 print(model.get_params())
 model.fit(X_train, Y_train)
 print(f"GB-CNN SCORE:{model.score(X_test, Y_test)}")
-print(f"CNN--Score{model.score_cnn(X_test, Y_test)[1]}")
+# print(f"CNN--Score{model.score_cnn(X_test, Y_test)[1]}")
 model.dumping()
+model._models[-1].summary()

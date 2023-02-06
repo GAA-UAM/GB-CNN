@@ -67,31 +67,6 @@ class BaseEstimator(Params):
             if counter >= patience:
                 return True
 
-    def _cnn_model(self, X, y):
-
-        model = _layers(X=X, y=y)
-
-        model.compile(optimizer=self._optimizer(eta=self.config.cnn_eta),
-                      loss='categorical_crossentropy',
-                      metrics=['accuracy']
-                      )
-
-        self.log_fh.info("CNN training")
-        self.log_sh.info(model.summary())
-
-        model.fit(X, y,
-                  batch_size=self.config.cnn_batch_size,
-                  epochs=self.config.cnn_epoch,
-                  verbose=1,
-                  callbacks=[self._cnn_es(monitor='loss',
-                                                  patience=self.config.cnn_patience)])
-
-        model.save("CNN.h5")
-        self.log_fh.warning("Pre-Trained CNN is saved (.h5)")
-        self.log_fh.info("CNN acc on original data: {0:.3f}".format(
-            model.evaluate(X, y, verbose=0)[1]))
-        return model
-
     def fit(self, X, y):
 
         _loss = multi_class_loss()
@@ -103,7 +78,6 @@ class BaseEstimator(Params):
         T = int(self.config.boosting_epoch/self.config.additive_units)
 
         model = _layers(X=X, y=y)
-        # model = self._cnn_model(X, y)
 
         self.intercept = _loss.model0(y)
         acum = np.ones_like(y) * self.intercept
@@ -145,6 +119,7 @@ class BaseEstimator(Params):
                       batch_size=self.config.additive_batch,
                       epochs=self.config.additive_epoch,
                       verbose=1,
+                      validation_split=0.3,
                       callbacks=[self._cnn_es(monitor="mean_squared_error",
                                                       patience=self.config.additive_patience)]
                       )
@@ -157,7 +132,7 @@ class BaseEstimator(Params):
             acum = acum + rho * pred
             self._add(model, rho)
 
-            self.log_fh.info("      Additive model-MSE: {0:.7f}".format(model.evaluate(X,
+            self.log_fh.info("       Additive model-MSE: {0:.7f}".format(model.evaluate(X,
                                                                                        residuals,
                                                                                        verbose=0)[1]))
             loss_mean = np.mean(_loss(y, acum))

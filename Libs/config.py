@@ -24,14 +24,6 @@ def str2bool(v):
 general_arg = add_arg_group("General")
 general_arg.add_argument('--seed', type=int, default=111)
 
-# CNN args
-cnn_arg = add_arg_group("CNN")
-cnn_arg.add_argument('--cnn_epoch', type=int, default=200)
-cnn_arg.add_argument('--cnn_eta', type=float, default=1e-1)
-cnn_arg.add_argument('--cnn_batch_size', type=int, default=256)
-cnn_arg.add_argument('--cnn_patience', type=int, default=3)
-
-
 # GB args
 gb_arg = add_arg_group("GB")
 gb_arg.add_argument('--boosting_epoch', type=int, default=200)
