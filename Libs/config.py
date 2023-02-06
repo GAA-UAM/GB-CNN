@@ -29,6 +29,9 @@ gb_arg = add_arg_group("GB")
 gb_arg.add_argument('--boosting_epoch', type=int, default=200)
 gb_arg.add_argument('--boosting_eta', type=float, default=1e-1)
 gb_arg.add_argument('--boosting_patience', type=int, default=3)
+gb_arg.add_argument('--out_dir', type=str, default='checkpoints', help='path for saving the checkpoints')
+
+
 
 # fine_tune args
 ft_arg = add_arg_group("additive_model")

@@ -33,7 +33,6 @@ class BaseEstimator(Params):
             self.log_fh.warning(
                 "The previously saved log file has been deleted!")
 
-
     def _cnn_es(self, monitor, patience):
         es = tf.keras.callbacks.EarlyStopping(monitor=monitor,
                                               patience=patience,
@@ -90,23 +89,24 @@ class BaseEstimator(Params):
 
             residuals = _loss.derive(y, acum)
 
-            if epoch==0:
+            if epoch == 0:
                 model.pop()
                 model.add(tf.keras.layers.BatchNormalization())
-                model.add(tf.keras.layers.Dense(self.config.additive_units, activation="relu"))
+                model.add(tf.keras.layers.Dense(
+                    self.config.additive_units, activation="relu"))
                 model.add(tf.keras.layers.Dense(y.shape[1]))
             else:
                 output_weights = model.layers[-1].get_weights()
                 # Remove the final output layer
                 model.pop()
                 # Add a dense layer before the final output layer
-                model.add(tf.keras.layers.Dense(self.config.additive_units, activation="relu"))
+                model.add(tf.keras.layers.Dense(
+                    self.config.additive_units, activation="relu"))
                 # Add the final output layer back with the correct shape
                 output_layer = tf.keras.layers.Dense(units=y.shape[1])
                 model.add(output_layer)
                 # Load the stored weights into the output layer
                 output_layer.set_weights(output_weights)
-
 
             model.compile(loss="mean_squared_error",
                           optimizer=self._optimizer(
@@ -133,15 +133,13 @@ class BaseEstimator(Params):
             self._add(model, rho)
 
             self.log_fh.info("       Additive model-MSE: {0:.7f}".format(model.evaluate(X,
-                                                                                       residuals,
-                                                                                       verbose=0)[1]))
+                                                                                        residuals,
+                                                                                        verbose=0)[1]))
             loss_mean = np.mean(_loss(y, acum))
             self.log_fh.info(
                 "       Gradient Loss: {0:.5f}".format(loss_mean))
             self._loss_curve.append(loss_mean)
-
-            if epoch ==0:
-                model.save("CNN.h5")
+            self._save_checkpoint(self._models[-1], epoch)
 
             if self._boosting_es(loss_mean, np.min(self._loss_curve), self.config.boosting_patience):
                 self.log_fh.warning(
@@ -178,9 +176,11 @@ class BaseEstimator(Params):
     def _check_params(self):
         """Check validity of parameters."""
 
-        if self.config.boosting_epoch < self.config.additive_units:
-            raise ValueError(
-                f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.additive_units}.")
+        assert self.config.boosting_epoch >= self.config.additive_units, format(
+            f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.additive_units}.")
+
+        if not self.config.out_dir:
+            os.mkdir('checkpoints')
 
         tf.random.set_seed(self.config.seed)
         np.random.RandomState(self.config.seed)
@@ -191,10 +191,12 @@ class BaseEstimator(Params):
         self._models = []
         self.steps = []
 
-    def dumping(self, num=-1):
-        """Dump the trained GB_CNN model. -1 returns the final trained model."""
-        model = self._models[num]
-        model.save(model.name + "_GB_CNN.h5")
+    def _save_checkpoint(self, model, epoch):
+        """Dump the trained GB_CNN model."""
+        model_name = os.path.join(
+            self.config.out_dir, f'{model.name + str(epoch)}.h5')
+        self.log_fh.warning(f"Checkpoint {model.name} is saved")
+        model.save(model_name)
 
     def score_cnn(self, X, y):
         assert len(y.shape) == 2, "input shape is not valid"
