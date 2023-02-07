@@ -11,6 +11,7 @@ Deep_GBNN has the following non-optional dependencies:
 - Python 3.6 or higher
 - TensorFlow 2.11 or higher
 - Numpy
+- scipy
 
 Installation
 ============

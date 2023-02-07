@@ -34,12 +34,6 @@ class BaseEstimator(Params):
             self.log_fh.warning(
                 "The previously saved log file has been deleted!")
 
-    def _cnn_es(self, monitor, patience):
-        es = tf.keras.callbacks.EarlyStopping(monitor=monitor,
-                                              patience=patience,
-                                              verbose=0)
-        return es
-
     def _optimizer(self, eta=1e-3, decay=False):
 
         if decay:
@@ -74,10 +68,9 @@ class BaseEstimator(Params):
         return train_generator
 
     def _layer_freezing(self, model):
-        name = model.layers[-2].name
-        model.get_layer(name).trainable = False
-        assert model.get_layer(
-            name).trainable == False, self.log_sh.error("The intermediate dense layer is not frozen!")
+        model.get_layer(model.layers[-2].name).trainable = False
+        assert model.get_layer(model.layers[-2].name).trainable == False, self.log_sh.error(
+            "The intermediate dense layer is not frozen!")
 
     def _add(self, model, step):
         self._models.append(model)
@@ -90,25 +83,32 @@ class BaseEstimator(Params):
 
     def fit(self, X, y):
 
-        _loss = multi_class_loss()
-
         y = self._validate_y(y)
         self._check_params()
-        self._lists_initialization()
+
+        _loss = multi_class_loss()
+        self.intercept = _loss.model0(y)
+
+        if self.config.load_points:
+            acum, t = self._load_checkpoints()
+            model = self._models[-1]
+        else:
+            self._lists_initialization()
+            t = int(0)
+            model = _layers(X=X, y=y)
+            acum = np.ones_like(y) * self.intercept
+
+        es = tf.keras.callbacks.EarlyStopping(monitor="mean_squared_error",
+                                              patience=self.config.additive_patience,
+                                              verbose=0)
 
         T = int(self.config.boosting_epoch/self.config.additive_units)
 
-        model = _layers(X=X, y=y)
-
-        self.intercept = _loss.model0(y)
-        acum = np.ones_like(y) * self.intercept
-
         self.log_fh.info("Training Dense Layers with Gradient Boosting")
 
-        for epoch in range(T):
+        for epoch in range(t, T):
 
             self.log_fh.info(f"Epoch: {epoch+1} out of {T}")
-
             residuals = _loss.derive(y, acum)
 
             if epoch == 0:
@@ -121,11 +121,16 @@ class BaseEstimator(Params):
                 output_weights = model.layers[-1].get_weights()
                 # Remove the final output layer
                 model.pop()
+
+                name = model.layers[-1].name[:-1] + str(int(
+                    model.layers[-1].name[-1]) + 1) if "name" not in globals() else name[:-1] + str(int(name[:-1])+1)
+
                 # Add a dense layer before the final output layer
                 model.add(tf.keras.layers.Dense(
-                    self.config.additive_units, activation="relu"))
+                    self.config.additive_units, activation="relu", name=name))
                 # Add the final output layer back with the correct shape
-                output_layer = tf.keras.layers.Dense(units=y.shape[1])
+                output_layer = tf.keras.layers.Dense(
+                    units=y.shape[1], name='output')
                 model.add(output_layer)
                 # Load the stored weights into the output layer
                 output_layer.set_weights(output_weights)
@@ -138,12 +143,10 @@ class BaseEstimator(Params):
             self.log_sh.info(model.summary())
 
             self.history = model.fit(x=self._data_generator(X, residuals),
-                                     #  batch_size=self.config.additive_batch,
                                      epochs=self.config.additive_epoch,
                                      use_multiprocessing=False,
                                      verbose=1,
-                                     callbacks=[self._cnn_es(monitor="mean_squared_error",
-                                                             patience=self.config.additive_patience)]
+                                     callbacks=[es]
                                      )
 
             self._layer_freezing(model=model)
@@ -161,12 +164,68 @@ class BaseEstimator(Params):
             self.log_fh.info(
                 "       Gradient Loss: {0:.5f}".format(loss_mean))
             self._loss_curve.append(loss_mean)
-            self._save_checkpoint(self._models[-1], epoch)
+            self._save_checkpoints(self._models[-1], epoch, acum)
 
             if self._boosting_es(loss_mean, np.min(self._loss_curve), self.config.boosting_patience):
                 self.log_fh.warning(
                     "Boosting training is stopped (Early stopping)")
                 break
+
+    def _check_params(self):
+        """Check validity of parameters."""
+
+        assert self.config.boosting_epoch >= self.config.additive_units, format(
+            f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.additive_units}.")
+
+        # Path for saving the checkpoints
+        try:
+            os.mkdir('checkpoints')
+        except:
+            self.log_sh.warning('dir already exists for checkpoints')
+
+        # Clear the GPU memory
+        tf.keras.backend.clear_session()
+
+        # Set the seed for Numpy and tf
+        tf.random.set_seed(self.config.seed)
+        np.random.RandomState(self.config.seed)
+        np.set_printoptions(precision=7, suppress=True)
+
+    def _save_checkpoints(self, model, epoch, acum):
+        """save the checking points."""
+        def _path(archive):
+            path = os.path.join("checkpoints", archive)
+            return path
+        np.savetxt(_path('acum.txt'), acum)
+        np.savetxt(_path('steps.txt'), self.steps)
+        np.savetxt(_path('loss_curve.txt'), self._loss_curve)
+        model.save(_path(f'{model.name + str(epoch)}.h5'))
+        self.log_fh.warning(f"Checkpoints are saved")
+
+    def _load_checkpoints(self):
+        self._models = []
+        self.steps = []
+        self._loss_curve = []
+        models = []
+
+        def path(dirpath, file):
+            return os.path.join(dirpath, file)
+        for dirpath, _, files in os.walk("checkpoints"):
+            for file in files:
+                if file.endswith('.h5'):
+                    model_path = path(dirpath, file)
+                    models.append(model_path)
+                elif file.startswith('acum'):
+                    acum = np.loadtxt(path(dirpath, file))
+                elif file.startswith('step'):
+                    self.steps.append(np.loadtxt(path(dirpath, file)).tolist())
+                elif file.startswith('loss_curve'):
+                    self._loss_curve.append(
+                        np.loadtxt(path(dirpath, file)).tolist())
+        models.sort()
+        self._models = [tf.keras.models.load_model(model) for model in models]
+        t = int(models[-1][-4])
+        return acum, t+1
 
     def decision_function(self, X):
 
@@ -179,22 +238,6 @@ class BaseEstimator(Params):
 
         return raw_predictions
 
-    def _check_params(self):
-        """Check validity of parameters."""
-
-        assert self.config.boosting_epoch >= self.config.additive_units, format(
-            f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.additive_units}.")
-
-        if not self.config.out_dir:
-            os.mkdir('checkpoints')
-
-        # clear the GPU memory
-        tf.keras.backend.clear_session()
-
-        tf.random.set_seed(self.config.seed)
-        np.random.RandomState(self.config.seed)
-        np.set_printoptions(precision=7, suppress=True)
-
     def _validate_y(self, y):
         assert len(y.shape) == 2, "input shape is not valid!"
         y = y.astype('int32')
@@ -204,19 +247,6 @@ class BaseEstimator(Params):
         training_loss = self.history.history['loss']
         training_mse = self.history.history['mean_squared_error']
         return training_loss
-
-    def _save_checkpoint(self, model, epoch):
-        """Dump the trained GB_CNN model."""
-        model_name = os.path.join(
-            self.config.out_dir, f'{model.name + str(epoch)}.h5')
-        self.log_fh.warning(f"Checkpoint {model.name} is saved")
-        model.save(model_name)
-
-    def score_cnn(self, X, y):
-        assert len(y.shape) == 2, "input shape is not valid"
-        model = tf.keras.models.load_model(glob.glob("*h5")[0])
-        score = model.evaluate(X, y, verbose=0)
-        return score
 
     @abstractmethod
     def predict(self, X):
@@ -229,8 +259,3 @@ class BaseEstimator(Params):
     @abstractmethod
     def score(self, X, y):
         """Return the score of the GB-CNN model"""
-
-    @classmethod
-    def _clear_session(cls):
-        """Clear the global state from stored models"""
-        tf.keras.backend.clear_session()

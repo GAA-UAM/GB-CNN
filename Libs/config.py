@@ -10,6 +10,7 @@ import argparse
 arg_list = []
 parser = argparse.ArgumentParser()
 
+
 def add_arg_group(name):
     arg = parser.add_argument_group(name)
     arg_list.append(arg)
@@ -29,8 +30,8 @@ gb_arg = add_arg_group("GB")
 gb_arg.add_argument('--boosting_epoch', type=int, default=200)
 gb_arg.add_argument('--boosting_eta', type=float, default=1e-1)
 gb_arg.add_argument('--boosting_patience', type=int, default=3)
-gb_arg.add_argument('--out_dir', type=str, default='checkpoints', help='path for saving the checkpoints')
-
+gb_arg.add_argument('--load_points', type=str2bool, default=False,
+                    help='if True, resume the training from the latested saved model')
 
 
 # fine_tune args
