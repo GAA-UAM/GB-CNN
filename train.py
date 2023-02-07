@@ -8,7 +8,16 @@ import tensorflow as tf
 from keras.utils import np_utils
 from Libs.config import get_config
 
-(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar100.load_data()
+gpu_memory_fraction = 0.7
+
+# Create GPUOptions with the fraction of GPU memory to allocate
+gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=gpu_memory_fraction)
+
+# Create a session with the GPUOptions
+session = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
+
+
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
 
 
 def prepare_data(X, size, channels):
@@ -17,28 +26,31 @@ def prepare_data(X, size, channels):
     return X/255.
 
 
-X_train = prepare_data(x_train, 32, 3)
-X_test = prepare_data(x_test, 32, 3)
+X_train = prepare_data(x_train, 28, 1)
+X_test = prepare_data(x_test, 28, 1)
 
-Y_train = np_utils.to_categorical(y_train, 100)
-Y_test = np_utils.to_categorical(y_test, 100)
+Y_train = np_utils.to_categorical(y_train, 10)
+Y_test = np_utils.to_categorical(y_test, 10)
 
-model = GBCNN(config=get_config())
 
-params = {'config': Namespace(seed=111,
-                              boosting_epoch=200,
-                              boosting_eta=1e-3,
-                              boosting_patience=4,
-                              out_dir='checkpoints',
-                              additive_epoch=200,
-                              additive_batch=128,
-                              additive_units=20,
-                              additive_eta=1e-3,
-                              additive_patience=200)}
+with tf.device('/gpu:0'):
+    model = GBCNN(config=get_config())
 
-model.set_params(**params)
-print(model.get_params())
-model.fit(X_train, Y_train)
+    params = {'config': Namespace(seed=111,
+                                boosting_epoch=2,
+                                boosting_eta=1e-3,
+                                boosting_patience=4,
+                                out_dir='checkpoints',
+                                additive_epoch=2,
+                                additive_batch=32,
+                                additive_units=2,
+                                additive_eta=1e-3,
+                                additive_patience=200)}
+
+    model.set_params(**params)
+    print(model.get_params())
+    model.fit(X_train, Y_train)
+    
 print(f"GB-CNN SCORE:{model.score(X_test, Y_test)}")
 pred_stage = [pred for pred in model.predict_stage(X_test)]
 yy = [np.argmax(yy, axis=None, out=None) for yy in Y_test]

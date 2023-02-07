@@ -12,10 +12,11 @@ import tensorflow as tf
 from ._params import Params
 from ._losses import multi_class_loss
 from Libs._logging import FileHandler, StreamHandler
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
 
 from ._cnn import _layers
 from abc import abstractmethod
-from sklearn.utils.multiclass import check_classification_targets
 
 
 class BaseEstimator(Params):
@@ -66,6 +67,27 @@ class BaseEstimator(Params):
             if counter >= patience:
                 return True
 
+    def _data_generator(self, X, y):
+        data_generator = ImageDataGenerator(rescale=1)
+        train_generator = data_generator.flow(
+            X, y, batch_size=self.config.additive_batch)
+        return train_generator
+
+    def _layer_freezing(self, model):
+        name = model.layers[-2].name
+        model.get_layer(name).trainable = False
+        assert model.get_layer(
+            name).trainable == False, self.log_sh.error("The intermediate dense layer is not frozen!")
+
+    def _add(self, model, step):
+        self._models.append(model)
+        self.steps.append(step)
+
+    def _lists_initialization(self):
+        self._loss_curve = []
+        self._models = []
+        self.steps = []
+
     def fit(self, X, y):
 
         _loss = multi_class_loss()
@@ -115,14 +137,14 @@ class BaseEstimator(Params):
 
             self.log_sh.info(model.summary())
 
-            model.fit(X, residuals,
-                      batch_size=self.config.additive_batch,
-                      epochs=self.config.additive_epoch,
-                      verbose=1,
-                      validation_split=0.3,
-                      callbacks=[self._cnn_es(monitor="mean_squared_error",
-                                                      patience=self.config.additive_patience)]
-                      )
+            self.history = model.fit(x=self._data_generator(X, residuals),
+                                     #  batch_size=self.config.additive_batch,
+                                     epochs=self.config.additive_epoch,
+                                     use_multiprocessing=False,
+                                     verbose=1,
+                                     callbacks=[self._cnn_es(monitor="mean_squared_error",
+                                                             patience=self.config.additive_patience)]
+                                     )
 
             self._layer_freezing(model=model)
 
@@ -146,16 +168,6 @@ class BaseEstimator(Params):
                     "Boosting training is stopped (Early stopping)")
                 break
 
-    def _layer_freezing(self, model):
-        name = model.layers[-2].name
-        model.get_layer(name).trainable = False
-        assert model.get_layer(
-            name).trainable == False, self.log_sh.error("The intermediate dense layer is not frozen!")
-
-    def _add(self, model, step):
-        self._models.append(model)
-        self.steps.append(step)
-
     def decision_function(self, X):
 
         pred = self._models[0].predict(X)
@@ -167,12 +179,6 @@ class BaseEstimator(Params):
 
         return raw_predictions
 
-    def _validate_y(self, y):
-        check_classification_targets(y)
-        assert len(y.shape) == 2, "input shape is not valid!"
-        y = y.astype('int32')
-        return y
-
     def _check_params(self):
         """Check validity of parameters."""
 
@@ -182,14 +188,22 @@ class BaseEstimator(Params):
         if not self.config.out_dir:
             os.mkdir('checkpoints')
 
+        # clear the GPU memory
+        tf.keras.backend.clear_session()
+
         tf.random.set_seed(self.config.seed)
         np.random.RandomState(self.config.seed)
         np.set_printoptions(precision=7, suppress=True)
 
-    def _lists_initialization(self):
-        self._loss_curve = []
-        self._models = []
-        self.steps = []
+    def _validate_y(self, y):
+        assert len(y.shape) == 2, "input shape is not valid!"
+        y = y.astype('int32')
+        return y
+
+    def additive_history(self):
+        training_loss = self.history.history['loss']
+        training_mse = self.history.history['mean_squared_error']
+        return training_loss
 
     def _save_checkpoint(self, model, epoch):
         """Dump the trained GB_CNN model."""

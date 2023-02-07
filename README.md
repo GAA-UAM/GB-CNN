@@ -9,25 +9,17 @@ GB-CNN is the python library for working with Gradient Boosted - Convolutional N
 Deep_GBNN has the following non-optional dependencies:
 
 - Python 3.6 or higher
-- TensorFlow
-- Scipy
+- TensorFlow 2.11 or higher
 - Numpy
 
 Installation
 ============
 
-Deep-GBNN is available on pypi. For installing through pip use:
-
-```bash
-$ pip install -r requirements.txt
-$ pip install deepgbnn
-```
-
-To install Deep-GBNN from the repository:
+To install GB-CNN from the repository:
 
 ```
-$ git clone https://github.com/deep-gbnn 
-$ cd Deep_GBNN/
+$ git clone https://github.com/GB-CNN
+$ cd GB-CNN/
 $ pip install -r requirements.txt
 $ python setup.py install
 ```
@@ -35,7 +27,7 @@ $ python setup.py install
 Development
 -----------
 
-Our latest algorithm is available on the `dev` branch of the repository.
+Our latest algorithm is available on the `main` branch of the repository.
 
 Contributing
 ------------
@@ -44,25 +36,21 @@ Issues can be reported.
 
 If you want to implement any new features, please have a discussion about it on the issue tracker or open a pull request.
 
-The friends involved in the development of the package can be found [here](network/dependencies).
-
 Examples
 ========
 
-We have a few example jupyter notebooks [here](https://github.com/samanemami/Deep_GBNN_EX/tree/main/Jupyter_NoteBooks).
+Some practical examples of using GB_CNN with extended results are available here.
 
-Citing
-======
+# Citing
 
-Please use the following bibtex for citing `Deep_GBNN` in your research:
+Please use the following bibtex for citing `GB-CNN` in your research:
 
 ```
-@inproceedings{deepgbnn,
-  title={Deep Gradient Boosting },
+@inproceedings{gbcnn,
+  title={Gradient Boosted - Convolutional Neural Network},
   author={Seyedsaman Emami, Gonzalo Martínez-Muñoz},
-  booktitle={},
   year={2022},
-  organization={}
+  organization={UAM}
 }
 ```
 
