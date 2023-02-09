@@ -161,9 +161,6 @@ class BaseEstimator(Params):
             self._loss_curve.append(loss_mean)
             self._save_checkpoints(self._models[-1], epoch)
 
-            np.savetxt('epoch' + str(epoch) + 'cnn_intrain_loss.txt',
-                       self.history.history['loss'])
-
             if self._boosting_es(loss_mean, np.min(self._loss_curve), self.config.boosting_patience):
                 self.log_fh.warning(
                     "Boosting training is stopped (Early stopping)")
