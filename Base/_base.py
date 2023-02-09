@@ -89,14 +89,9 @@ class BaseEstimator(Params):
         _loss = multi_class_loss()
         self.intercept = _loss.model0(y)
 
-        if self.config.load_points:
-            acum, t = self._load_checkpoints()
-            model = self._models[-1]
-        else:
-            self._lists_initialization()
-            t = int(0)
-            model = _layers(X=X, y=y)
-            acum = np.ones_like(y) * self.intercept
+        self._lists_initialization()
+        model = _layers(X=X, y=y)
+        acum = np.ones_like(y) * self.intercept
 
         es = tf.keras.callbacks.EarlyStopping(monitor="mean_squared_error",
                                               patience=self.config.additive_patience,
@@ -106,7 +101,7 @@ class BaseEstimator(Params):
 
         self.log_fh.info("Training Dense Layers with Gradient Boosting")
 
-        for epoch in range(t, T):
+        for epoch in range(T):
 
             self.log_fh.info(f"Epoch: {epoch+1} out of {T}")
             residuals = _loss.derive(y, acum)
@@ -164,7 +159,10 @@ class BaseEstimator(Params):
             self.log_fh.info(
                 "       Gradient Loss: {0:.5f}".format(loss_mean))
             self._loss_curve.append(loss_mean)
-            self._save_checkpoints(self._models[-1], epoch, acum)
+            self._save_checkpoints(self._models[-1], epoch)
+
+            np.savetxt('epoch' + str(epoch) + 'cnn_intrain_loss.txt',
+                       self.history.history['loss'])
 
             if self._boosting_es(loss_mean, np.min(self._loss_curve), self.config.boosting_patience):
                 self.log_fh.warning(
@@ -191,41 +189,16 @@ class BaseEstimator(Params):
         np.random.RandomState(self.config.seed)
         np.set_printoptions(precision=7, suppress=True)
 
-    def _save_checkpoints(self, model, epoch, acum):
+    def _save_checkpoints(self, model, epoch):
         """save the checking points."""
         def _path(archive):
             path = os.path.join("checkpoints", archive)
             return path
-        np.savetxt(_path('acum.txt'), acum)
-        np.savetxt(_path('steps.txt'), self.steps)
-        np.savetxt(_path('loss_curve.txt'), self._loss_curve)
+        np.savetxt(_path('gbnn_in_train_loss.txt'), self._loss_curve)
         model.save(_path(f'{model.name + str(epoch)}.h5'))
+        np.savetxt(_path('epoch_' + str(epoch) + '_cnn_intrain_loss.txt'),
+                   self.history.history['loss'])
         self.log_fh.warning(f"Checkpoints are saved")
-
-    def _load_checkpoints(self):
-        self._models = []
-        self.steps = []
-        self._loss_curve = []
-        models = []
-
-        def path(dirpath, file):
-            return os.path.join(dirpath, file)
-        for dirpath, _, files in os.walk("checkpoints"):
-            for file in files:
-                if file.endswith('.h5'):
-                    model_path = path(dirpath, file)
-                    models.append(model_path)
-                elif file.startswith('acum'):
-                    acum = np.loadtxt(path(dirpath, file))
-                elif file.startswith('step'):
-                    self.steps.append(np.loadtxt(path(dirpath, file)).tolist())
-                elif file.startswith('loss_curve'):
-                    self._loss_curve.append(
-                        np.loadtxt(path(dirpath, file)).tolist())
-        models.sort()
-        self._models = [tf.keras.models.load_model(model) for model in models]
-        t = int(models[-1][-4])
-        return acum, t+1
 
     def decision_function(self, X):
 
@@ -242,11 +215,6 @@ class BaseEstimator(Params):
         assert len(y.shape) == 2, "input shape is not valid!"
         y = y.astype('int32')
         return y
-
-    def additive_history(self):
-        training_loss = self.history.history['loss']
-        training_mse = self.history.history['mean_squared_error']
-        return training_loss
 
     @abstractmethod
     def predict(self, X):

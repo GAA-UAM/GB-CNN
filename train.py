@@ -37,13 +37,12 @@ with tf.device('/gpu:0'):
     model = GBCNN(config=get_config())
 
     params = {'config': Namespace(seed=111,
-                                boosting_epoch=8,
+                                boosting_epoch=1,
                                 boosting_eta=1e-3,
                                 boosting_patience=4,
-                                load_points=False,
                                 additive_epoch=1,
                                 additive_batch=200,
-                                additive_units=4,
+                                additive_units=1,
                                 additive_eta=1e-3,
                                 additive_patience=200)}
 
@@ -56,6 +55,3 @@ pred_stage = [pred for pred in model.predict_stage(X_test)]
 yy = [np.argmax(yy, axis=None, out=None) for yy in Y_test]
 acc = [accuracy_score(yy, pred) for pred in pred_stage]
 plt.plot(acc)
-#%%
-
-model.steps
