@@ -40,7 +40,7 @@ with tf.device('/gpu:0'):
                                 boosting_epoch=1,
                                 boosting_eta=1e-3,
                                 boosting_patience=4,
-                                save_check_points=True,
+                                save_check_points=False,
                                 additive_epoch=1,
                                 additive_batch=200,
                                 additive_units=1,
