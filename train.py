@@ -37,7 +37,7 @@ with tf.device('/gpu:0'):
     model = GBCNN(config=get_config())
 
     params = {'config': Namespace(seed=111,
-                                boosting_epoch=1,
+                                boosting_epoch=2,
                                 boosting_eta=1e-3,
                                 boosting_patience=4,
                                 additive_epoch=1,
@@ -48,10 +48,13 @@ with tf.device('/gpu:0'):
 
     model.set_params(**params)
     print(model.get_params())
-    model.fit(X_train, Y_train)
+    model.fit(X_train, Y_train, X_test, Y_test)
     
 print(f"GB-CNN SCORE:{model.score(X_test, Y_test)}")
 pred_stage = [pred for pred in model.predict_stage(X_test)]
 yy = [np.argmax(yy, axis=None, out=None) for yy in Y_test]
 acc = [accuracy_score(yy, pred) for pred in pred_stage]
 plt.plot(acc)
+
+# %%
+model.history.history

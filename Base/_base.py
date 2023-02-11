@@ -77,11 +77,13 @@ class BaseEstimator(Params):
         self.steps.append(step)
 
     def _lists_initialization(self):
-        self._loss_curve = []
+        self.g_history = {"loss_train": [],
+                          "acc_train": [],
+                          "acc_val": []}
         self._models = []
         self.steps = []
 
-    def fit(self, X, y):
+    def fit(self, X, y, x_test=None, y_test=None):
 
         y = self._validate_y(y)
         self._check_params()
@@ -141,6 +143,7 @@ class BaseEstimator(Params):
                                      epochs=self.config.additive_epoch,
                                      use_multiprocessing=False,
                                      verbose=1,
+                                     validation_data=(x_test, y_test),
                                      callbacks=[es]
                                      )
 
@@ -155,16 +158,27 @@ class BaseEstimator(Params):
             self.log_fh.info("       Additive model-MSE: {0:.7f}".format(model.evaluate(X,
                                                                                         residuals,
                                                                                         verbose=0)[1]))
+
+            self.g_history["acc_val"].append(
+                self._in_train_score(x_test, y_test))
+            self.g_history["acc_train"].append(self._in_train_score(X, y))
             loss_mean = np.mean(_loss(y, acum))
             self.log_fh.info(
                 "       Gradient Loss: {0:.5f}".format(loss_mean))
-            self._loss_curve.append(loss_mean)
+            self.g_history["loss_train"].append(loss_mean)
+
             self._save_checkpoints(self._models[-1], epoch)
 
-            if self._boosting_es(loss_mean, np.min(self._loss_curve), self.config.boosting_patience):
+            if self._boosting_es(loss_mean, np.min(self.g_history["loss_train"]), self.config.boosting_patience):
                 self.log_fh.warning(
                     "Boosting training is stopped (Early stopping)")
                 break
+
+    def _in_train_score(self, X, y):
+        pred = np.argmax(multi_class_loss().raw_predictions_to_probs(
+            self.decision_function(X)), axis=1)
+        y = [np.argmax(yy, axis=None, out=None) for yy in y]
+        return np.mean(y == pred)
 
     def _check_params(self):
         """Check validity of parameters."""
@@ -191,10 +205,16 @@ class BaseEstimator(Params):
         def _path(archive):
             path = os.path.join("checkpoints", archive)
             return path
-        np.savetxt(_path('gbnn_in_train_loss.txt'), self._loss_curve)
+        np.savetxt(_path('gb_cnn_loss.txt'), self.g_history["loss_train"])
+        np.savetxt(_path('gb_cnn_intrain_acc_train.txt'),
+                   self.g_history["acc_train"])
+        np.savetxt(_path('gb_cnn_intrain_acc_val.txt'),
+                   self.g_history["acc_val"])
         model.save(_path(f'{model.name + str(epoch)}.h5'))
-        np.savetxt(_path('epoch_' + str(epoch) + '_cnn_intrain_loss.txt'),
+        np.savetxt(_path('epoch_' + str(epoch) + '_additive_training_loss.txt'),
                    self.history.history['loss'])
+        np.savetxt(_path('epoch_' + str(epoch) + '_additive_training_val_loss.txt'),
+                   self.history.history['val_loss'])
         self.log_fh.warning(f"Checkpoints are saved")
 
     def decision_function(self, X):
