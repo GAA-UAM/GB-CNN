@@ -139,11 +139,12 @@ class BaseEstimator(Params):
 
             self.log_sh.info(model.summary())
 
+            val_data = (x_test, y_test) if self._validation_data else (X, y)
             self.history = model.fit(x=self._data_generator(X, residuals),
                                      epochs=self.config.additive_epoch,
                                      use_multiprocessing=False,
                                      verbose=1,
-                                     validation_data=(x_test, y_test),
+                                     validation_data=val_data,
                                      callbacks=[es]
                                      )
 
@@ -159,15 +160,17 @@ class BaseEstimator(Params):
                                                                                         residuals,
                                                                                         verbose=0)[1]))
 
-            self.g_history["acc_val"].append(
-                self._in_train_score(x_test, y_test))
-            self.g_history["acc_train"].append(self._in_train_score(X, y))
             loss_mean = np.mean(_loss(y, acum))
             self.log_fh.info(
                 "       Gradient Loss: {0:.5f}".format(loss_mean))
             self.g_history["loss_train"].append(loss_mean)
 
-            self._save_checkpoints(self._models[-1], epoch)
+            if self.config.save_check_points:
+                self.g_history["acc_val"].append(
+                    self._in_train_score(x_test, y_test))
+                self.g_history["acc_train"].append(self._in_train_score(X, y))
+
+                self._save_checkpoints(self._models[-1], epoch)
 
             if self._boosting_es(loss_mean, np.min(self.g_history["loss_train"]), self.config.boosting_patience):
                 self.log_fh.warning(
@@ -186,11 +189,14 @@ class BaseEstimator(Params):
         assert self.config.boosting_epoch >= self.config.additive_units, format(
             f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.additive_units}.")
 
-        # Path for saving the checkpoints
-        try:
-            os.mkdir('checkpoints')
-        except:
-            self.log_sh.warning('dir already exists for checkpoints')
+        self._validation_data = False
+        if self.config.save_check_points:
+            # Path for saving the checkpoints
+            try:
+                os.mkdir('checkpoints')
+            except:
+                self.log_sh.warning('dir already exists for checkpoints')
+            self.validation_data = True
 
         # Clear the GPU memory
         tf.keras.backend.clear_session()
@@ -205,16 +211,22 @@ class BaseEstimator(Params):
         def _path(archive):
             path = os.path.join("checkpoints", archive)
             return path
-        np.savetxt(_path('gb_cnn_loss.txt'), self.g_history["loss_train"])
-        np.savetxt(_path('gb_cnn_intrain_acc_train.txt'),
-                   self.g_history["acc_train"])
-        np.savetxt(_path('gb_cnn_intrain_acc_val.txt'),
-                   self.g_history["acc_val"])
-        model.save(_path(f'{model.name + str(epoch)}.h5'))
-        np.savetxt(_path('epoch_' + str(epoch) + '_additive_training_loss.txt'),
-                   self.history.history['loss'])
-        np.savetxt(_path('epoch_' + str(epoch) + '_additive_training_val_loss.txt'),
-                   self.history.history['val_loss'])
+
+        archives = [('gb_cnn_loss.txt', self.g_history["loss_train"]),
+                    ('gb_cnn_intrain_acc_train.txt',
+                     self.g_history["acc_train"]),
+                    ('gb_cnn_intrain_acc_val.txt', self.g_history["acc_val"]),
+                    (f'{model.name + str(epoch)}.h5', model),
+                    ('epoch_' + str(epoch) + '_additive_training_loss.txt',
+                     self.history.history['loss']),
+                    ('epoch_' + str(epoch) + '_additive_training_val_loss.txt', self.history.history['val_loss'])]
+
+        for archive in archives:
+            if archive[0].endswith('txt'):
+                np.savetxt(_path(archive[0]), archive[1])
+            else:
+                archive[1].save(_path(archive[0]))
+
         self.log_fh.warning(f"Checkpoints are saved")
 
     def decision_function(self, X):
