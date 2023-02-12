@@ -78,9 +78,28 @@ with tf.device('/gpu:0'):
 
     model.set_params(**params)
     print(model.get_params())
-    model.fit(X_train, Y_train, X_test, Y_test)
+    model.fit(X_train, Y_train)
   
 print(f"GB-CNN SCORE:{model.score(X_test, Y_test)}")
+```
+
+# Performance
+
+```html
+<div style="display: flex; flex-wrap: wrap; width: 100%;">
+  <div style="flex: 1; max-width: 50%;">
+    <img src="https://raw.githubusercontent.com/samanemami/GB-CNN/main/doc/acc_GB-CNN.png?token=GHSAT0AAAAAAB6A7QRIXO2OOIDK3XSBQAYQY7IWWPQ" style="width: 100%;">
+  </div>
+  <div style="flex: 1; max-width: 50%;">
+    <img src="https://raw.githubusercontent.com/samanemami/GB-CNN/main/doc/loss-additive_GB-CNN.png?token=GHSAT0AAAAAAB6A7QRJEQT67IVKULJKWT6IY7IWWRA" style="width: 100%;">
+  </div>
+  <div style="flex: 1; max-width: 50%;">
+    <img src="https://raw.githubusercontent.com/samanemami/GB-CNN/main/doc/loss_GB-CNN.png?token=GHSAT0AAAAAAB6A7QRJBO7C3TS2LAIDQ6UIY7IWWSQ" style="width: 100%;">
+  </div>
+  <div style="flex: 1; max-width: 50%;">
+    <img src="https://raw.githubusercontent.com/samanemami/GB-CNN/main/doc/val_loss-additive_GB-CNN.png?token=GHSAT0AAAAAAB6A7QRJJKHJCD7TCB3PH4WKY7IWWUA" style="width: 100%;">
+  </div>
+</div>
 ```
 
 # Citing
