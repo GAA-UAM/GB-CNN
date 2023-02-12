@@ -29,19 +29,18 @@ general_arg.add_argument('--seed', type=int, default=111)
 gb_arg = add_arg_group("GB")
 gb_arg.add_argument('--boosting_epoch', type=int, default=40)
 gb_arg.add_argument('--boosting_eta', type=float, default=1e-1)
-gb_arg.add_argument('--boosting_patience', type=int, default=2)
-# Note, save_check_points will consume more memory
-gb_arg.add_argument('--save_check_points', type=str2bool, default=False,
+# Note, save_records will consume more memory
+gb_arg.add_argument('--save_records', type=str2bool, default=False,
                     help='save trained models, and additional training metrics')
 
 
 # fine_tune args
 ft_arg = add_arg_group("additive_model")
 ft_arg.add_argument('--additive_epoch', type=int, default=200)
-ft_arg.add_argument('--additive_batch', type=int, default=128)
-ft_arg.add_argument('--additive_units', type=int, default=20)
+ft_arg.add_argument('--batch', type=int, default=128)
+ft_arg.add_argument('--units', type=int, default=20)
 ft_arg.add_argument('--additive_eta', type=float, default=1e-3)
-ft_arg.add_argument('--additive_patience', type=int, default=3)
+ft_arg.add_argument('--patience', type=int, default=3)
 
 
 def get_config():

@@ -54,17 +54,10 @@ class BaseEstimator(Params):
 
         return opt
 
-    def _boosting_es(self, loss, min_loss, patience):
-        counter = 0
-        if loss > min_loss:
-            counter += 1
-            if counter >= patience:
-                return True
-
     def _data_generator(self, X, y):
         data_generator = ImageDataGenerator(rescale=1)
         train_generator = data_generator.flow(
-            X, y, batch_size=self.config.additive_batch)
+            X, y, batch_size=self.config.batch)
         return train_generator
 
     def _layer_freezing(self, model):
@@ -96,10 +89,10 @@ class BaseEstimator(Params):
         acum = np.ones_like(y) * self.intercept
 
         es = tf.keras.callbacks.EarlyStopping(monitor="mean_squared_error",
-                                              patience=self.config.additive_patience,
+                                              patience=self.config.patience,
                                               verbose=0)
 
-        T = int(self.config.boosting_epoch/self.config.additive_units)
+        T = int(self.config.boosting_epoch/self.config.units)
 
         self.log_fh.info("Training Dense Layers with Gradient Boosting")
 
@@ -109,12 +102,16 @@ class BaseEstimator(Params):
             residuals = _loss.derive(y, acum)
 
             if epoch == 0:
+                epochs = self.config.additive_epoch
                 model.pop()
                 model.add(tf.keras.layers.BatchNormalization())
                 model.add(tf.keras.layers.Dense(
-                    self.config.additive_units, activation="relu"))
+                    self.config.units, activation="relu"))
                 model.add(tf.keras.layers.Dense(y.shape[1]))
             else:
+                epochs = int(0.1 * self.config.additive_epoch)
+                self._clear_session()
+                model = tf.keras.models.load_model(checkpoint)
                 output_weights = model.layers[-1].get_weights()
                 # Remove the final output layer
                 model.pop()
@@ -124,7 +121,7 @@ class BaseEstimator(Params):
 
                 # Add a dense layer before the final output layer
                 model.add(tf.keras.layers.Dense(
-                    self.config.additive_units, activation="relu", name=name))
+                    self.config.units, activation="relu",  name=name))
                 # Add the final output layer back with the correct shape
                 output_layer = tf.keras.layers.Dense(
                     units=y.shape[1], name='output')
@@ -141,12 +138,15 @@ class BaseEstimator(Params):
 
             val_data = (x_test, y_test) if self._validation_data else (X, y)
             self.history = model.fit(x=self._data_generator(X, residuals),
-                                     epochs=self.config.additive_epoch,
+                                     epochs=epochs,
                                      use_multiprocessing=False,
                                      verbose=1,
                                      validation_data=val_data,
                                      callbacks=[es]
                                      )
+
+            checkpoint = f'model_{epoch}.h5'
+            model.save(checkpoint)
 
             self._layer_freezing(model=model)
 
@@ -163,19 +163,16 @@ class BaseEstimator(Params):
             loss_mean = np.mean(_loss(y, acum))
             self.log_fh.info(
                 "       Gradient Loss: {0:.5f}".format(loss_mean))
-            self.g_history["loss_train"].append(loss_mean)
 
-            if self.config.save_check_points:
+            if self.config.save_records:
                 self.g_history["acc_val"].append(
                     self._in_train_score(x_test, y_test))
                 self.g_history["acc_train"].append(self._in_train_score(X, y))
+                self.g_history["loss_train"].append(loss_mean)
+                self._save_records(epoch)
 
-                self._save_checkpoints(self._models[-1], epoch)
-
-            if self._boosting_es(loss_mean, np.min(self.g_history["loss_train"]), self.config.boosting_patience):
-                self.log_fh.warning(
-                    "Boosting training is stopped (Early stopping)")
-                break
+        for i in glob.glob("*.h5"):
+            os.remove(i)
 
     def _in_train_score(self, X, y):
         pred = np.argmax(multi_class_loss().raw_predictions_to_probs(
@@ -186,46 +183,52 @@ class BaseEstimator(Params):
     def _check_params(self):
         """Check validity of parameters."""
 
-        assert self.config.boosting_epoch >= self.config.additive_units, format(
-            f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.additive_units}.")
+        assert self.config.boosting_epoch >= self.config.units, format(
+            f"Boosting number {self.config.boosting_epoch} should be greater than the units {self.config.units}.")
+
+        assert self.config.additive_epoch >= 70, format(
+            f"The acceptable additive epoch for the model is greater than {70} but received {self.config.additive_epoch}")
+
+        assert self.config.patience <= self.config.additive_epoch, format(
+            f"patience should be equal to or less than {self.config.additive_epoch}, but received {self.config.patience}")
 
         self._validation_data = False
-        if self.config.save_check_points:
+        if self.config.save_records:
+            self._validation_data = True
             # Path for saving the checkpoints
             try:
-                os.mkdir('checkpoints')
+                os.mkdir('records')
             except:
-                self.log_sh.warning('dir already exists for checkpoints')
-            self.validation_data = True
+                self.log_sh.warning('dir already exists for record')
+                self.log_sh.warning('previous records have been deleted')
+                for dirname, _, filenames in os.walk('records'):
+                    for record in filenames:
+                        os.remove(os.path.join(dirname, record))
 
         # Clear the GPU memory
-        tf.keras.backend.clear_session()
+        self._clear_session()
 
         # Set the seed for Numpy and tf
         tf.random.set_seed(self.config.seed)
         np.random.RandomState(self.config.seed)
         np.set_printoptions(precision=7, suppress=True)
 
-    def _save_checkpoints(self, model, epoch):
+    def _save_records(self, epoch):
         """save the checking points."""
         def _path(archive):
-            path = os.path.join("checkpoints", archive)
+            path = os.path.join("records", archive)
             return path
 
         archives = [('gb_cnn_loss.txt', self.g_history["loss_train"]),
                     ('gb_cnn_intrain_acc_train.txt',
                      self.g_history["acc_train"]),
                     ('gb_cnn_intrain_acc_val.txt', self.g_history["acc_val"]),
-                    (f'{model.name + str(epoch)}.h5', model),
                     ('epoch_' + str(epoch) + '_additive_training_loss.txt',
                      self.history.history['loss']),
                     ('epoch_' + str(epoch) + '_additive_training_val_loss.txt', self.history.history['val_loss'])]
 
         for archive in archives:
-            if archive[0].endswith('txt'):
-                np.savetxt(_path(archive[0]), archive[1])
-            else:
-                archive[1].save(_path(archive[0]))
+            np.savetxt(_path(archive[0]), archive[1])
 
         self.log_fh.warning(f"Checkpoints are saved")
 
@@ -256,3 +259,6 @@ class BaseEstimator(Params):
     @abstractmethod
     def score(self, X, y):
         """Return the score of the GB-CNN model"""
+
+    def _clear_session(self):
+        tf.keras.backend.clear_session()

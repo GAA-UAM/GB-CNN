@@ -133,4 +133,4 @@ dmypy.json
 
 # Tensorflow saved models
 /*.h5
-/checkpoints
+/records
