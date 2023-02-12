@@ -1,4 +1,4 @@
-""" Model Configurations """
+""" GB-CNN Configurations """
 
 # Author: Seyedsaman Emami
 # Author: Gonzalo Martínez-Muñoz
@@ -27,9 +27,9 @@ general_arg.add_argument('--seed', type=int, default=111)
 
 # GB args
 gb_arg = add_arg_group("GB")
-gb_arg.add_argument('--boosting_epoch', type=int, default=200)
+gb_arg.add_argument('--boosting_epoch', type=int, default=40)
 gb_arg.add_argument('--boosting_eta', type=float, default=1e-1)
-gb_arg.add_argument('--boosting_patience', type=int, default=3)
+gb_arg.add_argument('--boosting_patience', type=int, default=2)
 # Note, save_check_points will consume more memory
 gb_arg.add_argument('--save_check_points', type=str2bool, default=False,
                     help='save trained models, and additional training metrics')
@@ -37,14 +37,13 @@ gb_arg.add_argument('--save_check_points', type=str2bool, default=False,
 
 # fine_tune args
 ft_arg = add_arg_group("additive_model")
-ft_arg.add_argument('--additive_epoch', type=int, default=100)
-ft_arg.add_argument('--additive_batch', type=int, default=64)
-ft_arg.add_argument('--additive_units', type=int, default=10)
+ft_arg.add_argument('--additive_epoch', type=int, default=200)
+ft_arg.add_argument('--additive_batch', type=int, default=128)
+ft_arg.add_argument('--additive_units', type=int, default=20)
 ft_arg.add_argument('--additive_eta', type=float, default=1e-3)
-ft_arg.add_argument('--additive_patience', type=int, default=7)
+ft_arg.add_argument('--additive_patience', type=int, default=3)
 
 
 def get_config():
-    # args = parser.parse_args()
     args, _ = parser.parse_known_args()
     return args
