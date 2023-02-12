@@ -85,7 +85,8 @@ print(f"GB-CNN SCORE:{model.score(X_test, Y_test)}")
 
 # Performance
 
-```html
+An example of the model's performance on the CIFAR-10 dataset, in terms of training loss and accuracy on different loss functions of the model using training and test data points.
+
 <div style="display: flex; flex-wrap: wrap; width: 100%;">
   <div style="flex: 1; max-width: 50%;">
     <img src="https://raw.githubusercontent.com/samanemami/GB-CNN/main/doc/acc_GB-CNN.png?token=GHSAT0AAAAAAB6A7QRIXO2OOIDK3XSBQAYQY7IWWPQ" style="width: 100%;">
@@ -100,7 +101,7 @@ print(f"GB-CNN SCORE:{model.score(X_test, Y_test)}")
     <img src="https://raw.githubusercontent.com/samanemami/GB-CNN/main/doc/val_loss-additive_GB-CNN.png?token=GHSAT0AAAAAAB6A7QRJJKHJCD7TCB3PH4WKY7IWWUA" style="width: 100%;">
   </div>
 </div>
-```
+
 
 # Citing
 
