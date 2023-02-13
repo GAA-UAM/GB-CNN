@@ -102,16 +102,12 @@ class BaseEstimator(Params):
             residuals = _loss.derive(y, acum)
 
             if epoch == 0:
-                epochs = self.config.additive_epoch
                 model.pop()
                 model.add(tf.keras.layers.BatchNormalization())
                 model.add(tf.keras.layers.Dense(
                     self.config.units, activation="relu"))
                 model.add(tf.keras.layers.Dense(y.shape[1]))
             else:
-                epochs = int(0.1 * self.config.additive_epoch)
-                self._clear_session()
-                model = tf.keras.models.load_model(checkpoint)
                 output_weights = model.layers[-1].get_weights()
                 # Remove the final output layer
                 model.pop()
@@ -138,7 +134,7 @@ class BaseEstimator(Params):
 
             val_data = (x_test, y_test) if self._validation_data else (X, y)
             self.history = model.fit(x=self._data_generator(X, residuals),
-                                     epochs=epochs,
+                                     epochs=self.config.additive_epoch,
                                      use_multiprocessing=False,
                                      verbose=1,
                                      validation_data=val_data,
@@ -170,9 +166,6 @@ class BaseEstimator(Params):
                 self.g_history["acc_train"].append(self._in_train_score(X, y))
                 self.g_history["loss_train"].append(loss_mean)
                 self._save_records(epoch)
-
-        for i in glob.glob("*.h5"):
-            os.remove(i)
 
     def _in_train_score(self, X, y):
         pred = np.argmax(multi_class_loss().raw_predictions_to_probs(
@@ -206,7 +199,7 @@ class BaseEstimator(Params):
                         os.remove(os.path.join(dirname, record))
 
         # Clear the GPU memory
-        self._clear_session()
+        tf.keras.backend.clear_session()
 
         # Set the seed for Numpy and tf
         tf.random.set_seed(self.config.seed)
@@ -217,6 +210,7 @@ class BaseEstimator(Params):
         """save the checking points."""
         def _path(archive):
             path = os.path.join("records", archive)
+            # path = os.path.join(os.getcwd(), archive)
             return path
 
         archives = [('gb_cnn_loss.txt', self.g_history["loss_train"]),
@@ -259,6 +253,3 @@ class BaseEstimator(Params):
     @abstractmethod
     def score(self, X, y):
         """Return the score of the GB-CNN model"""
-
-    def _clear_session(self):
-        tf.keras.backend.clear_session()
