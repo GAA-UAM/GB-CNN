@@ -19,6 +19,7 @@ class GBCNN(BaseGBCNN):
     def _validate_y(self, y):
         assert len(y.shape) == 2, "input shape is not valid!"
         y = y.astype('int32')
+        self._loss = multi_class_loss()
         return y
 
     def predict_proba(self, X):
