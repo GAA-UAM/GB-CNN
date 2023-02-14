@@ -10,7 +10,6 @@ import glob
 import numpy as np
 import tensorflow as tf
 from ._params import Params
-from ._losses import multi_class_loss
 from Libs._logging import FileHandler, StreamHandler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
@@ -26,7 +25,6 @@ class BaseEstimator(Params):
         self.config = config
         self.log_fh = FileHandler()
         self.log_sh = StreamHandler()
-        
 
         logs = glob.glob('*log')
         if os.path.getsize(logs[0]) > 0:
@@ -82,11 +80,46 @@ class BaseEstimator(Params):
     def fit(self):
         """Abstract method for fit"""
 
+    @abstractmethod
+    def _validate_y(self, y):
+        """validate y and specify the loss function"""
+
+    @abstractmethod
+    def predict(self, X):
+        """Return the predicted value"""
+
+    @abstractmethod
+    def predict_stage(self, X):
+        """Return the predicted value of each boosting iteration"""
+
+    @abstractmethod
+    def score(self, X, y):
+        """Return the score of the GB-CNN model"""
+
     def _in_train_score(self, X, y):
         pred = np.argmax(self._loss.raw_predictions_to_probs(
             self.decision_function(X)), axis=1)
         y = [np.argmax(yy, axis=None, out=None) for yy in y]
         return np.mean(y == pred)
+
+    def _save_records(self, epoch):
+        """save the checking points."""
+        def _path(archive):
+            # path = os.path.join("records", archive)
+            path = os.path.join(os.getcwd(), archive)
+            return path
+
+        archives = [('loss.txt', self.g_history["loss_train"]),
+                    ('acc_train.txt', self.g_history["acc_train"]),
+                    ('acc_val.txt', self.g_history["acc_val"]),
+                    (f'epoch_{str(epoch)}_additive_training_loss.txt',
+                     self.history.history['loss']),
+                    (f'epoch_{str(epoch)}_additive_training_val_loss.txt', self.history.history['val_loss'])]
+
+        for archive in archives:
+            np.savetxt(_path(archive[0]), archive[1])
+
+        self.log_fh.warning(f"Checkpoints are saved")
 
     def _check_params(self):
         """Check validity of parameters."""
@@ -103,8 +136,8 @@ class BaseEstimator(Params):
         self._validation_data = False
         if self.config.save_records:
             self._validation_data = True
-            # Path for saving the checkpoints
             try:
+                # Path for saving the checkpoints
                 os.mkdir('records')
             except:
                 self.log_sh.warning('dir already exists for record')
@@ -131,23 +164,7 @@ class BaseEstimator(Params):
             raw_predictions += model.predict(X) * step
 
         return raw_predictions
-
-    @abstractmethod
-    def _validate_y(self, y):
-        """validate y and specify the loss function"""
-
-    @abstractmethod
-    def predict(self, X):
-        """Return the predicted value"""
-
-    @abstractmethod
-    def predict_stage(self, X):
-        """Return the predicted value of each boosting iteration"""
-
-    @abstractmethod
-    def score(self, X, y):
-        """Return the score of the GB-CNN model"""
-
+        
 
 class BaseGBCNN(BaseEstimator):
     def __init__(self, config):
@@ -248,26 +265,6 @@ class BaseGBCNN(BaseEstimator):
                 self.g_history["loss_train"].append(loss_mean)
                 self._save_records(epoch)
 
-    def _save_records(self, epoch):
-        """save the checking points."""
-        def _path(archive):
-            # path = os.path.join("records", archive)
-            path = os.path.join(os.getcwd(), archive)
-            return path
-
-        archives = [('gb_cnn_loss.txt', self.g_history["loss_train"]),
-                    ('gb_cnn_intrain_acc_train.txt',
-                     self.g_history["acc_train"]),
-                    ('gb_cnn_intrain_acc_val.txt', self.g_history["acc_val"]),
-                    ('epoch_' + str(epoch) + '_additive_training_loss.txt',
-                     self.history.history['loss']),
-                    ('epoch_' + str(epoch) + '_additive_training_val_loss.txt', self.history.history['val_loss'])]
-
-        for archive in archives:
-            np.savetxt(_path(archive[0]), archive[1])
-
-        self.log_fh.warning(f"Checkpoints are saved")
-
 
 class BaseDeepGBNN(BaseEstimator):
 
@@ -357,13 +354,13 @@ class BaseDeepGBNN(BaseEstimator):
                           metrics=[tf.keras.metrics.MeanSquaredError()])
 
             val_data = (x_test, y_test) if self._validation_data else (X, y)
-            model.fit(X, residuals,
-                      batch_size=self.config.batch,
-                      epochs=self.config.additive_epoch,
-                      validation_data = val_data, 
-                      verbose=False,
-                      callbacks=[es],
-                      )
+            self.history = model.fit(X, residuals,
+                                     batch_size=self.config.batch,
+                                     epochs=self.config.additive_epoch,
+                                     validation_data=val_data,
+                                     verbose=False,
+                                     callbacks=[es],
+                                     )
 
             self._layer_freezing(model=model)
 
