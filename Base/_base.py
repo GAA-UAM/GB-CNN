@@ -26,7 +26,7 @@ class BaseEstimator(Params):
         self.config = config
         self.log_fh = FileHandler()
         self.log_sh = StreamHandler()
-        self.T = int(self.config.boosting_epoch/self.config.units)
+        
 
         logs = glob.glob('*log')
         if os.path.getsize(logs[0]) > 0:
@@ -171,9 +171,11 @@ class BaseGBCNN(BaseEstimator):
 
         self.log_fh.info("Training Dense Layers with Gradient Boosting")
 
-        for epoch in range(self.T):
+        T = int(self.config.boosting_epoch/self.config.units)
 
-            self.log_fh.info(f"Epoch: {epoch+1} out of {self.T}")
+        for epoch in range(T):
+
+            self.log_fh.info(f"Epoch: {epoch+1} out of {T}")
             residuals = _loss.derive(y, acum)
 
             if epoch == 0:
@@ -339,7 +341,9 @@ class BaseDeepGBNN(BaseEstimator):
         opt = self._optimizer(eta=self.config.additive_eta,
                               decay=False)
 
-        for i in range(self.T):
+        T = int(self.config.boosting_epoch/self.config.units)
+
+        for i in range(T):
 
             residuals = self._loss.derive(y, acum)
             residuals = residuals.astype(np.float32)
