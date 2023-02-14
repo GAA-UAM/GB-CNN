@@ -82,6 +82,12 @@ class BaseEstimator(Params):
     def fit(self):
         """Abstract method for fit"""
 
+    def _in_train_score(self, X, y):
+        pred = np.argmax(self._loss.raw_predictions_to_probs(
+            self.decision_function(X)), axis=1)
+        y = [np.argmax(yy, axis=None, out=None) for yy in y]
+        return np.mean(y == pred)
+
     def _check_params(self):
         """Check validity of parameters."""
 
@@ -158,8 +164,8 @@ class BaseGBCNN(BaseEstimator):
         y = self._validate_y(y)
         self._check_params()
 
-        _loss = multi_class_loss()
-        self.intercept = _loss.model0(y)
+        # _loss = multi_class_loss()
+        self.intercept = self._loss.model0(y)
 
         self._lists_initialization()
         model = _layers(X=X, y=y)
@@ -176,7 +182,7 @@ class BaseGBCNN(BaseEstimator):
         for epoch in range(T):
 
             self.log_fh.info(f"Epoch: {epoch+1} out of {T}")
-            residuals = _loss.derive(y, acum)
+            residuals = self._loss.derive(y, acum)
 
             if epoch == 0:
                 model.pop()
@@ -221,7 +227,7 @@ class BaseGBCNN(BaseEstimator):
 
             pred = model.predict(X)
             rho = self.config.boosting_eta * \
-                _loss.newton_step(y, residuals, pred)
+                self._loss.newton_step(y, residuals, pred)
             acum = acum + rho * pred
             self._add(model, rho)
 
@@ -229,7 +235,7 @@ class BaseGBCNN(BaseEstimator):
                                                                                         residuals,
                                                                                         verbose=0)[1]))
 
-            # loss_mean = np.mean(_loss(y, acum))
+            # loss_mean = np.mean(self._loss(y, acum))
             loss_mean = np.mean(tf.keras.metrics.categorical_crossentropy(
                 y, acum, from_logits=False, label_smoothing=0.0, axis=-1))
             self.log_fh.info(
@@ -241,12 +247,6 @@ class BaseGBCNN(BaseEstimator):
                 self.g_history["acc_train"].append(self._in_train_score(X, y))
                 self.g_history["loss_train"].append(loss_mean)
                 self._save_records(epoch)
-
-    def _in_train_score(self, X, y):
-        pred = np.argmax(multi_class_loss().raw_predictions_to_probs(
-            self.decision_function(X)), axis=1)
-        y = [np.argmax(yy, axis=None, out=None) for yy in y]
-        return np.mean(y == pred)
 
     def _save_records(self, epoch):
         """save the checking points."""
@@ -325,7 +325,7 @@ class BaseDeepGBNN(BaseEstimator):
 
         return model
 
-    def fit(self, X, y):
+    def fit(self, X, y, x_test=None, y_test=None):
 
         X = X.astype(np.float32)
 
@@ -343,22 +343,24 @@ class BaseDeepGBNN(BaseEstimator):
 
         T = int(self.config.boosting_epoch/self.config.units)
 
-        for i in range(T):
+        for epoch in range(T):
 
             residuals = self._loss.derive(y, acum)
             residuals = residuals.astype(np.float32)
 
             model = self._regressor(X=X,
-                                    name=str(i)
+                                    name=str(epoch)
                                     )
 
             model.compile(loss="mean_squared_error",
                           optimizer=opt,
                           metrics=[tf.keras.metrics.MeanSquaredError()])
 
+            val_data = (x_test, y_test) if self._validation_data else (X, y)
             model.fit(X, residuals,
                       batch_size=self.config.batch,
                       epochs=self.config.additive_epoch,
+                      validation_data = val_data, 
                       verbose=False,
                       callbacks=[es],
                       )
@@ -373,3 +375,10 @@ class BaseDeepGBNN(BaseEstimator):
             loss_mean = np.mean(self._loss(y, acum))
             self.g_history["loss_train"].append(loss_mean)
             self._add(model, rho)
+
+            if self.config.save_records:
+                self.g_history["acc_val"].append(
+                    self._in_train_score(x_test, y_test))
+                self.g_history["acc_train"].append(self._in_train_score(X, y))
+                self.g_history["loss_train"].append(loss_mean)
+                self._save_records(epoch)
