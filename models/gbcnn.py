@@ -6,15 +6,20 @@
 # Licence: GNU Lesser General Public License v2.1 (LGPL-2.1)
 
 import numpy as np
-from Base import BaseEstimator
+from Base import BaseGBCNN
 from Base._losses import multi_class_loss
 
 
-class GBCNN(BaseEstimator):
+class GBCNN(BaseGBCNN):
 
     def __init__(self, config):
 
         super().__init__(config)
+
+    def _validate_y(self, y):
+        assert len(y.shape) == 2, "input shape is not valid!"
+        y = y.astype('int32')
+        return y
 
     def predict_proba(self, X):
         return multi_class_loss().raw_predictions_to_probs(self.decision_function(X))

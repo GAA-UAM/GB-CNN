@@ -26,6 +26,7 @@ class BaseEstimator(Params):
         self.config = config
         self.log_fh = FileHandler()
         self.log_sh = StreamHandler()
+        
 
         logs = glob.glob('*log')
         if os.path.getsize(logs[0]) > 0:
@@ -33,6 +34,11 @@ class BaseEstimator(Params):
             f.truncate()
             self.log_fh.warning(
                 "The previously saved log file has been deleted!")
+
+    def _layer_freezing(self, model):
+        model.get_layer(model.layers[-2].name).trainable = False
+        assert model.get_layer(model.layers[-2].name).trainable == False, self.log_sh.error(
+            "The intermediate dense layer is not frozen!")
 
     def _optimizer(self, eta=1e-3, decay=False):
 
@@ -54,17 +60,6 @@ class BaseEstimator(Params):
 
         return opt
 
-    def _data_generator(self, X, y):
-        data_generator = ImageDataGenerator(rescale=1)
-        train_generator = data_generator.flow(
-            X, y, batch_size=self.config.batch)
-        return train_generator
-
-    def _layer_freezing(self, model):
-        model.get_layer(model.layers[-2].name).trainable = False
-        assert model.get_layer(model.layers[-2].name).trainable == False, self.log_sh.error(
-            "The intermediate dense layer is not frozen!")
-
     def _add(self, model, step):
         self._models.append(model)
         self.steps.append(step)
@@ -75,103 +70,17 @@ class BaseEstimator(Params):
                           "acc_val": []}
         self._models = []
         self.steps = []
+        self.layers = []
 
-    def fit(self, X, y, x_test=None, y_test=None):
-
-        y = self._validate_y(y)
-        self._check_params()
-
-        _loss = multi_class_loss()
-        self.intercept = _loss.model0(y)
-
-        self._lists_initialization()
-        model = _layers(X=X, y=y)
-        acum = np.ones_like(y) * self.intercept
-
+    def _early_stop(self):
         es = tf.keras.callbacks.EarlyStopping(monitor="mean_squared_error",
                                               patience=self.config.patience,
                                               verbose=0)
+        return es
 
-        T = int(self.config.boosting_epoch/self.config.units)
-
-        self.log_fh.info("Training Dense Layers with Gradient Boosting")
-
-        for epoch in range(T):
-
-            self.log_fh.info(f"Epoch: {epoch+1} out of {T}")
-            residuals = _loss.derive(y, acum)
-
-            if epoch == 0:
-                model.pop()
-                model.add(tf.keras.layers.BatchNormalization())
-                model.add(tf.keras.layers.Dense(
-                    self.config.units, activation="relu"))
-                model.add(tf.keras.layers.Dense(y.shape[1]))
-            else:
-                output_weights = model.layers[-1].get_weights()
-                # Remove the final output layer
-                model.pop()
-
-                name = model.layers[-1].name[:-1] + str(int(
-                    model.layers[-1].name[-1]) + 1) if "name" not in globals() else name[:-1] + str(int(name[:-1])+1)
-
-                # Add a dense layer before the final output layer
-                model.add(tf.keras.layers.Dense(
-                    self.config.units, activation="relu",  name=name))
-                # Add the final output layer back with the correct shape
-                output_layer = tf.keras.layers.Dense(
-                    units=y.shape[1], name='output')
-                model.add(output_layer)
-                # Load the stored weights into the output layer
-                output_layer.set_weights(output_weights)
-
-            model.compile(loss="mean_squared_error",
-                          optimizer=self._optimizer(
-                              eta=self.config.additive_eta, decay=False),
-                          metrics=[tf.keras.metrics.MeanSquaredError()])
-
-            self.log_sh.info(model.summary())
-
-            val_data = (x_test, y_test) if self._validation_data else (X, y)
-            self.history = model.fit(x=self._data_generator(X, residuals),
-                                     epochs=self.config.additive_epoch,
-                                     use_multiprocessing=False,
-                                     verbose=1,
-                                     validation_data=val_data,
-                                     callbacks=[es]
-                                     )
-
-            checkpoint = f'model_{epoch}.h5'
-            model.save(checkpoint)
-
-            self._layer_freezing(model=model)
-
-            pred = model.predict(X)
-            rho = self.config.boosting_eta * \
-                _loss.newton_step(y, residuals, pred)
-            acum = acum + rho * pred
-            self._add(model, rho)
-
-            self.log_fh.info("       Additive model-MSE: {0:.7f}".format(model.evaluate(X,
-                                                                                        residuals,
-                                                                                        verbose=0)[1]))
-
-            loss_mean = np.mean(_loss(y, acum))
-            self.log_fh.info(
-                "       Gradient Loss: {0:.5f}".format(loss_mean))
-
-            if self.config.save_records:
-                self.g_history["acc_val"].append(
-                    self._in_train_score(x_test, y_test))
-                self.g_history["acc_train"].append(self._in_train_score(X, y))
-                self.g_history["loss_train"].append(loss_mean)
-                self._save_records(epoch)
-
-    def _in_train_score(self, X, y):
-        pred = np.argmax(multi_class_loss().raw_predictions_to_probs(
-            self.decision_function(X)), axis=1)
-        y = [np.argmax(yy, axis=None, out=None) for yy in y]
-        return np.mean(y == pred)
+    @abstractmethod
+    def fit(self):
+        """Abstract method for fit"""
 
     def _check_params(self):
         """Check validity of parameters."""
@@ -206,11 +115,144 @@ class BaseEstimator(Params):
         np.random.RandomState(self.config.seed)
         np.set_printoptions(precision=7, suppress=True)
 
+    def decision_function(self, X):
+
+        pred = self._models[0].predict(X)
+        raw_predictions = pred * self.steps[0] + self.intercept
+        self._pred = raw_predictions
+
+        for model, step in zip(self._models[1:], self.steps[1:]):
+            raw_predictions += model.predict(X) * step
+
+        return raw_predictions
+
+    @abstractmethod
+    def _validate_y(self, y):
+        """validate y and specify the loss function"""
+
+    @abstractmethod
+    def predict(self, X):
+        """Return the predicted value"""
+
+    @abstractmethod
+    def predict_stage(self, X):
+        """Return the predicted value of each boosting iteration"""
+
+    @abstractmethod
+    def score(self, X, y):
+        """Return the score of the GB-CNN model"""
+
+
+class BaseGBCNN(BaseEstimator):
+    def __init__(self, config):
+        super().__init__(config)
+
+    def _data_generator(self, X, y):
+        data_generator = ImageDataGenerator(rescale=1)
+        train_generator = data_generator.flow(
+            X, y, batch_size=self.config.batch)
+        return train_generator
+
+    def fit(self, X, y, x_test=None, y_test=None):
+
+        y = self._validate_y(y)
+        self._check_params()
+
+        _loss = multi_class_loss()
+        self.intercept = _loss.model0(y)
+
+        self._lists_initialization()
+        model = _layers(X=X, y=y)
+        acum = np.ones_like(y) * self.intercept
+
+        es = self._early_stop()
+        opt = self._optimizer(eta=self.config.additive_eta,
+                              decay=False)
+
+        self.log_fh.info("Training Dense Layers with Gradient Boosting")
+
+        T = int(self.config.boosting_epoch/self.config.units)
+
+        for epoch in range(T):
+
+            self.log_fh.info(f"Epoch: {epoch+1} out of {T}")
+            residuals = _loss.derive(y, acum)
+
+            if epoch == 0:
+                model.pop()
+                model.add(tf.keras.layers.BatchNormalization())
+                model.add(tf.keras.layers.Dense(
+                    self.config.units, activation="relu"))
+                model.add(tf.keras.layers.Dense(y.shape[1]))
+            else:
+                output_weights = model.layers[-1].get_weights()
+                # Remove the final output layer
+                model.pop()
+
+                name = model.layers[-1].name[:-1] + str(int(
+                    model.layers[-1].name[-1]) + 1) if "name" not in globals() else name[:-1] + str(int(name[:-1])+1)
+
+                # Add a dense layer before the final output layer
+                model.add(tf.keras.layers.Dense(
+                    self.config.units, activation="relu",  name=name))
+                # Add the final output layer back with the correct shape
+                output_layer = tf.keras.layers.Dense(
+                    units=y.shape[1], name='output')
+                model.add(output_layer)
+                # Load the stored weights into the output layer
+                output_layer.set_weights(output_weights)
+
+            model.compile(loss="mean_squared_error",
+                          optimizer=opt,
+                          metrics=[tf.keras.metrics.MeanSquaredError()])
+
+            self.log_sh.info(model.summary())
+
+            val_data = (x_test, y_test) if self._validation_data else (X, y)
+            self.history = model.fit(x=self._data_generator(X, residuals),
+                                     epochs=self.config.additive_epoch,
+                                     use_multiprocessing=False,
+                                     verbose=1,
+                                     validation_data=val_data,
+                                     callbacks=[es]
+                                     )
+
+            self._layer_freezing(model=model)
+
+            pred = model.predict(X)
+            rho = self.config.boosting_eta * \
+                _loss.newton_step(y, residuals, pred)
+            acum = acum + rho * pred
+            self._add(model, rho)
+
+            self.log_fh.info("       Additive model-MSE: {0:.7f}".format(model.evaluate(X,
+                                                                                        residuals,
+                                                                                        verbose=0)[1]))
+
+            # loss_mean = np.mean(_loss(y, acum))
+            loss_mean = np.mean(tf.keras.metrics.categorical_crossentropy(
+                y, acum, from_logits=False, label_smoothing=0.0, axis=-1))
+            self.log_fh.info(
+                "       Gradient Loss: {0:.5f}".format(loss_mean))
+
+            if self.config.save_records:
+                self.g_history["acc_val"].append(
+                    self._in_train_score(x_test, y_test))
+                self.g_history["acc_train"].append(self._in_train_score(X, y))
+                self.g_history["loss_train"].append(loss_mean)
+                self._save_records(epoch)
+
+    def _in_train_score(self, X, y):
+        pred = np.argmax(multi_class_loss().raw_predictions_to_probs(
+            self.decision_function(X)), axis=1)
+        y = [np.argmax(yy, axis=None, out=None) for yy in y]
+        return np.mean(y == pred)
+
     def _save_records(self, epoch):
         """save the checking points."""
         def _path(archive):
-            path = os.path.join("records", archive)
-            # path = os.path.join(os.getcwd(), archive)
+            # path = os.path.join("records", archive)
+            path = os.path.join(os.getcwd(), archive)
             return path
 
         archives = [('gb_cnn_loss.txt', self.g_history["loss_train"]),
@@ -226,30 +268,108 @@ class BaseEstimator(Params):
 
         self.log_fh.warning(f"Checkpoints are saved")
 
-    def decision_function(self, X):
 
-        pred = self._models[0].predict(X)
-        raw_predictions = pred * self.steps[0] + self.intercept
-        self._pred = raw_predictions
+class BaseDeepGBNN(BaseEstimator):
 
-        for model, step in zip(self._models[1:], self.steps[1:]):
-            raw_predictions += model.predict(X) * step
+    def __init__(self, config):
+        super().__init__(config)
 
-        return raw_predictions
+    def _regressor(self, X, name):
+        """Building the additive deep
+        regressor of the gradient boosting"""
 
-    def _validate_y(self, y):
-        assert len(y.shape) == 2, "input shape is not valid!"
-        y = y.astype('int32')
-        return y
+        model = tf.keras.models.Sequential(name=name)
 
-    @abstractmethod
-    def predict(self, X):
-        """Return the predicted value"""
+        # Normalizing the input
+        model.add(tf.keras.layers.Normalization(axis=-1))
 
-    @abstractmethod
-    def predict_stage(self, X):
-        """Return the predicted value of each boosting iteration"""
+        # Build the Input Layer
+        # Input and flatten layers for Images dataset
+        if len(X.shape) > 3:
+            model.add(tf.keras.layers.Dense(self.config.units,
+                                            input_shape=X.shape[1:],
+                                            activation="relu"))
+            flatten_layer = tf.keras.layers.Flatten()
 
-    @abstractmethod
-    def score(self, X, y):
-        """Return the score of the GB-CNN model"""
+        # Input layer for tabular dataset
+        else:
+            model.add(tf.keras.layers.Dense(self.config.units,
+                                            input_dim=X.shape[1],
+                                            activation="relu"))
+        # Hidden Layers
+        # Empowering the network with frozen trained layers
+        for layer in self.layers:
+            # Importing frozen layers as the intermediate layers of the network
+            model.add(layer)
+
+        # Adds one new raw hidden layer with randomized weight
+        # get_weights()[0].shape == (self.config.units, self.config.units)
+        # get_weights()[1].shape == (self.config.units)
+        layer = tf.keras.layers.Dense(self.config.units,
+                                      activation="relu")
+        layer.trainable = True
+        model.add(layer)
+
+        # Adding dropout layer after the last hidden layer
+        # model.add(keras.layers.Dropout(rate=0.1))
+
+        try:
+            model.add(flatten_layer)
+        except:
+            pass
+        # Output layers
+        model.add(tf.keras.layers.Dense(self.n_classes))
+
+        assert model.trainable == True, "Check the model trainability"
+        assert model.layers[-2].trainable == True, "The new hidden layer should be trainable."
+
+        return model
+
+    def fit(self, X, y):
+
+        X = X.astype(np.float32)
+
+        y = self._validate_y(y)
+        self._check_params()
+        self._lists_initialization()
+
+        self.intercept = self._loss.model0(y)
+        acum = np.ones_like(y) * self.intercept
+
+        es = self._early_stop()
+
+        opt = self._optimizer(eta=self.config.additive_eta,
+                              decay=False)
+
+        T = int(self.config.boosting_epoch/self.config.units)
+
+        for i in range(T):
+
+            residuals = self._loss.derive(y, acum)
+            residuals = residuals.astype(np.float32)
+
+            model = self._regressor(X=X,
+                                    name=str(i)
+                                    )
+
+            model.compile(loss="mean_squared_error",
+                          optimizer=opt,
+                          metrics=[tf.keras.metrics.MeanSquaredError()])
+
+            model.fit(X, residuals,
+                      batch_size=self.config.batch,
+                      epochs=self.config.additive_epoch,
+                      verbose=False,
+                      callbacks=[es],
+                      )
+
+            self._layer_freezing(model=model)
+
+            pred = model.predict(X)
+            rho = self.config.boosting_eta * \
+                self._loss.newton_step(y, residuals, pred)
+            acum = acum + rho * pred
+
+            loss_mean = np.mean(self._loss(y, acum))
+            self.g_history["loss_train"].append(loss_mean)
+            self._add(model, rho)
