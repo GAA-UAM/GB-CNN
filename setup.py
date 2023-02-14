@@ -12,7 +12,7 @@ with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as fh:
 
 VERSION = '0.0.1'
 DESCRIPTION = 'GB-CNN'
-LONG_DESCRIPTION = 'Gradient Boosted - Convolutional Neural Network'
+LONG_DESCRIPTION = 'Gradient Boosted - Convolutional Neural Networks (GradientBoostedCNNs)'
 
 setup(name="GBNN",
       version=VERSION,
