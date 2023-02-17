@@ -105,8 +105,7 @@ class BaseEstimator(Params):
     def _save_records(self, epoch):
         """save the checking points."""
         def _path(archive):
-            # path = os.path.join("records", archive)
-            path = os.path.join(os.getcwd(), archive)
+            path = os.path.join("records", archive)
             return path
 
         archives = [('loss.txt', self.g_history["loss_train"]),
@@ -164,7 +163,7 @@ class BaseEstimator(Params):
             raw_predictions += model.predict(X) * step
 
         return raw_predictions
-        
+
 
 class BaseGBCNN(BaseEstimator):
     def __init__(self, config):
@@ -252,9 +251,7 @@ class BaseGBCNN(BaseEstimator):
                                                                                         residuals,
                                                                                         verbose=0)[1]))
 
-            # loss_mean = np.mean(self._loss(y, acum))
-            loss_mean = np.mean(tf.keras.metrics.categorical_crossentropy(
-                y, acum, from_logits=False, label_smoothing=0.0, axis=-1))
+            loss_mean = np.mean(self._loss(y, acum))
             self.log_fh.info(
                 "       Gradient Loss: {0:.5f}".format(loss_mean))
 
