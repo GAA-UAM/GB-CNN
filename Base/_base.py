@@ -59,6 +59,7 @@ class BaseEstimator(Params):
         return opt
 
     def _add(self, model, step):
+        self._models.append(tf.keras.models.clone_model(model))
         self._models.append(model)
         self.steps.append(step)
 
@@ -105,7 +106,8 @@ class BaseEstimator(Params):
     def _save_records(self, epoch):
         """save the checking points."""
         def _path(archive):
-            path = os.path.join("records", archive)
+            # path = os.path.join("records", archive)
+            path = os.path.join(os.getcwd(), archive)
             return path
 
         archives = [('loss.txt', self.g_history["loss_train"]),
