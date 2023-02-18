@@ -6,6 +6,7 @@
 # Licence: GNU Lesser General Public License v2.1 (LGPL-2.1)
 
 import os
+import gc
 import glob
 import numpy as np
 import tensorflow as tf
@@ -59,9 +60,12 @@ class BaseEstimator(Params):
         return opt
 
     def _add(self, model, step):
-        self._models.append(tf.keras.models.clone_model(model))
-        self._models.append(model)
+        cloned_model = tf.keras.models.clone_model(model)
+        cloned_model.set_weights(model.get_weights())
+        self._models.append(cloned_model)
         self.steps.append(step)
+        del cloned_model
+        gc.collect()
 
     def _lists_initialization(self):
         self.g_history = {"loss_train": [],
@@ -247,6 +251,7 @@ class BaseGBCNN(BaseEstimator):
             rho = self.config.boosting_eta * \
                 self._loss.newton_step(y, residuals, pred)
             acum = acum + rho * pred
+            model._name = f'model{epoch}'
             self._add(model, rho)
 
             self.log_fh.info("       Additive model-MSE: {0:.7f}".format(model.evaluate(X,
