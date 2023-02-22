@@ -46,7 +46,7 @@ An examples that demonstrate GB-CNN training on CIFAR-10, 2D-image dataset.
 
  To find out more about the model's ability, please refer to the algorithm and corresponding paper.
 
-```python-repl
+```Python
 import tensorflow as tf
 from models.gbcnn import GBCNN
 from keras.utils import np_utils
