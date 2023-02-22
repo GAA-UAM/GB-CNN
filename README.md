@@ -52,7 +52,7 @@ from models.gbcnn import GBCNN
 from keras.utils import np_utils
 from Libs.config import get_config
 
-(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar100.load_data()
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
 
 
 def prepare_data(X, size, channels):
@@ -64,8 +64,8 @@ def prepare_data(X, size, channels):
 X_train = prepare_data(x_train, 32, 3)
 X_test = prepare_data(x_test, 32, 3)
 
-Y_train = np_utils.to_categorical(y_train, 100)
-Y_test = np_utils.to_categorical(y_test, 100)
+Y_train = np_utils.to_categorical(y_train, 10)
+Y_test = np_utils.to_categorical(y_test, 10)
 
 params = {'config': Namespace(seed=111,
                               boosting_epoch=40,
