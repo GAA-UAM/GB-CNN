@@ -95,5 +95,4 @@ class multi_class_loss(classification_loss):
         return np.exp(preds - logsumexp(preds, axis=1, keepdims=True))
 
     def __call__(self, y, pred):
-        return np.sum(-1 * (y * pred).sum(axis=1) +
-                      logsumexp(pred, axis=1))
+        return (-1 * (y * pred).sum(axis=1) + logsumexp(pred, axis=1))
