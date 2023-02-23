@@ -1,8 +1,8 @@
 # GradientBoostedCNNs
 
-Gradient Boosted - Convolutional Neural Networks
+A Gradient Boosting Approach for Training Convolutional and Deep Neural Networks 	
 
-GB-CNN is the python library for working with Gradient Boosted - Convolutional Neural Networks and Deep Gradient Boosted Neural Networks.
+GB-CNN is the python library for working with Gradient Boosted - Convolutional Neural Networks (GB-CNN) and Gradient Boosted Deep Neural Networks (GB-DNN).
 
 # Dependencies
 
