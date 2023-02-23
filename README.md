@@ -1,8 +1,28 @@
-# GradientBoostedCNNs
-
-A Gradient Boosting Approach for Training Convolutional and Deep Neural Networks 	
+# A Gradient Boosting Approach for Training Convolutional and Deep Neural Networks 	
 
 GB-CNN is the python library for working with Gradient Boosted - Convolutional Neural Networks (GB-CNN) and Gradient Boosted Deep Neural Networks (GB-DNN).
+
+
+# Citing
+
+Please use the following bibtex for citing `GB-CNN` in your research:
+
+```
+@inproceedings{gbcnn,
+  title={Boosting the Performance of Deep Learning: A Gradient Boosting Approach to Training Convolutional and Deep Neural Networks},
+  author={Emami, Seyedsaman and Mart{\'\i}nez-Mu{\~n}oz, Gonzalo},
+  journal={https://arxiv.org/abs/2302.11327},
+  year={2022}
+}
+```
+Or simply use the [CITATION](CITATION.cff).
+
+License
+=======
+
+The package is licensed under the [GNU Lesser General Public License v2.1](https://github.com/GAA-UAM/GBNN/blob/main/LICENSE).
+
+
 
 # Dependencies
 
@@ -85,23 +105,6 @@ model.fit(X_train, Y_train, X_test, Y_test)
 >> Note that the X_test and Y_test in the fit are optional. If None, the validation report will not be generated.
 >>
 
-# Citing
-
-Please use the following bibtex for citing `GB-CNN` in your research:
-
-```
-@inproceedings{gbcnn,
-  title={Boosting the Performance of Deep Learning: A Gradient Boosting Approach to Training Convolutional and Deep Neural Networks},
-  author={Emami, Seyedsaman and Mart{\'\i}nez-Mu{\~n}oz, Gonzalo},
-  journal={https://arxiv.org/abs/2302.11327},
-  year={2022}
-}
-```
-
-License
-=======
-
-The package is licensed under the [GNU Lesser General Public License v2.1](https://github.com/GAA-UAM/GBNN/blob/main/LICENSE).
 
 # Version
 
