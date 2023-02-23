@@ -22,6 +22,18 @@ License
 
 The package is licensed under the [GNU Lesser General Public License v2.1](https://github.com/GAA-UAM/GBNN/blob/main/LICENSE).
 
+Development
+-----------
+
+Our latest algorithm is available on the `main` branch of the repository.
+
+Contributing
+------------
+
+Issues can be reported.
+
+If you want to implement any new features, please have a discussion about it on the issue tracker or open a pull request.
+
 
 
 # Dependencies
@@ -44,18 +56,6 @@ $ cd GB-CNN/
 $ pip install -r requirements.txt
 $ python setup.py install
 ```
-
-Development
------------
-
-Our latest algorithm is available on the `main` branch of the repository.
-
-Contributing
-------------
-
-Issues can be reported.
-
-If you want to implement any new features, please have a discussion about it on the issue tracker or open a pull request.
 
 Examples
 ========
