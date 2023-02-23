@@ -110,8 +110,7 @@ class BaseEstimator(Params):
     def _save_records(self, epoch):
         """save the checking points."""
         def _path(archive):
-            # path = os.path.join("records", archive)
-            path = os.path.join(os.getcwd(), archive)
+            path = os.path.join("records", archive)
             return path
 
         archives = [('loss.txt', self.g_history["loss_train"]),
