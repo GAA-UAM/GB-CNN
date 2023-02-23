@@ -10,7 +10,7 @@ Please use the following bibtex for citing `GB-CNN` in your research:
 ```
 @inproceedings{gbcnn,
   title={A Gradient Boosting Approach for Training Convolutional and Deep Neural Networks},
-  author={Emami, Seyedsaman and Mart{\'\i}nez-Mu{\~n}oz, Gonzalo},
+  author={Emami, Seyedsaman and Martínez-Muñoz, Gonzalo},
   journal={https://arxiv.org/abs/2302.11327},
   year={2023}
 }
