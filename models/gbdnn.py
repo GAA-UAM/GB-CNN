@@ -1,4 +1,4 @@
-""" Deep Gradient Boosted Neural Network """
+""" Gradient Boosted - Deep Neural Network """
 
 # Author: Seyedsaman Emami
 # Author: Gonzalo Martínez-Muñoz
@@ -7,12 +7,12 @@
 
 import numpy as np
 from Base import _losses
-from Base._base import BaseDeepGBNN
+from Base._base import BaseGBDNN
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.utils.multiclass import type_of_target, check_classification_targets
 
 
-class DeepClassifier(BaseDeepGBNN):
+class GBDNNClassifier(BaseGBDNN):
 
     def __init__(self, config):
 
@@ -62,7 +62,7 @@ class DeepClassifier(BaseDeepGBNN):
         return np.mean(score)
 
 
-class DeepRegressor(BaseDeepGBNN):
+class GBDNNRegressor(BaseGBDNN):
 
     def __init__(self,
                  additive_epoch=10,
