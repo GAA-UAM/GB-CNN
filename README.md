@@ -60,9 +60,8 @@ $ python setup.py install
 Examples
 ========
 
+### GB-CNN
 An examples that demonstrate GB-CNN training on CIFAR-10, 2D-image dataset.
-
-> The train on the tabular dataset, the deepgbnn model should be trained which has the same hyperparameters and methods to call.
 
  To find out more about the model's ability, please refer to the algorithm and corresponding paper.
 
@@ -104,7 +103,48 @@ model.fit(X_train, Y_train, X_test, Y_test)
 ```
 
 >> Note that the X_test and Y_test in the fit are optional. If None, the validation report will not be generated.
->>
+
+### GB-DNN
+
+To train on the tabular dataset, the Deep-GBNN model should be trained which has the same hyperparameters and methods to call.
+
+```Python
+from models.gbdnn import GBDNNClassifier
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+
+X, y = make_classification(n_features=2,
+                           n_redundant=0,
+                           n_informative=2,
+                           random_state=1,
+                           n_clusters_per_class=1,
+                           n_classes=3,
+                           n_samples=500,
+                           flip_y=0.15,
+                           shuffle=True)
+x_train, x_test, y_train, y_test = train_test_split(X, y)
+
+model = GBDNNClassifier(config=get_config())
+
+params = {'config': Namespace(seed=111,
+                              boosting_epoch=40,
+                              boosting_eta=1e-3,
+                              save_records=True,
+                              additive_epoch=70,
+                              batch=128,
+                              units=20,
+                              additive_eta=1e-3,
+                              patience=2)}
+
+model.set_params(**params)
+
+
+model.fit(x_train, y_train, x_test, y_test)
+
+print(f"GB-CNN SCORE:{model.score(x_test, y_test)}")
+
+```
+
 
 
 # Version
