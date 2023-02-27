@@ -269,7 +269,7 @@ class BaseGBCNN(BaseEstimator):
                 self._save_records(epoch)
 
 
-class BaseDeepGBNN(BaseEstimator):
+class BaseGBDNN(BaseEstimator):
 
     def __init__(self, config):
         super().__init__(config)
