@@ -2,9 +2,9 @@
 
 GB-CNN is the python library for working with Gradient Boosted - Convolutional Neural Networks (GB-CNN) and Gradient Boosted Deep Neural Networks (GB-DNN).
 
-* GB-CNN is designed to implement the Gradient Boosted Convolutional layers for the image datasets.
+* **GB-CNN** is designed to implement the Gradient Boosted Convolutional layers for the *image* datasets.
 
-* GB-DNN is designed to implement the Gradient Boosted Dense layers for the big dimension tabular datasets.
+* **GB-DNN** is designed to implement the Gradient Boosted Dense layers for the big dimension *tabular* datasets.
 
 
 # Citing
