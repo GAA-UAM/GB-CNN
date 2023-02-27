@@ -106,37 +106,32 @@ model = GBCNN(config=get_config())
 model.set_params(**params)
 print(model.get_params())
 model.fit(X_train, Y_train, X_test, Y_test)
+
+# Note that the X_test and Y_test in the fit are optional. If None, the validation report will not be generated.
 ```
 
->> Note that the X_test and Y_test in the fit are optional. If None, the validation report will not be generated.
 
 ### GB-DNN
 
-To train on the tabular dataset, the Deep-GBNN model should be trained which has the same hyperparameters and methods to call.
+To train on the tabular dataset, the Deep-GBNN model should be trained.
 
 ```Python
 from models.gbdnn import GBDNNClassifier
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 
-X, y = make_classification(n_features=2,
-                           n_redundant=0,
-                           n_informative=2,
-                           random_state=1,
-                           n_clusters_per_class=1,
-                           n_classes=3,
-                           n_samples=500,
-                           flip_y=0.15,
-                           shuffle=True)
+X, y = make_classification(n_informative=16, n_classes=10, n_samples=5000)
 x_train, x_test, y_train, y_test = train_test_split(X, y)
 
 model = GBDNNClassifier(config=get_config())
 model.set_params(**params)
-model.fit(x_train, y_train, x_test, y_test)
-print(f"GB-CNN SCORE:{model.score(x_test, y_test)}")
+model.fit(x_train, y_train)
+print(f"GB-DNN SCORE:{model.score(x_test, y_test)}")
 
 ```
 
+> The models developed in a way that the different hyper parameter optimization such as grid search can be easily applied through the config.
+To now more about the hyperparameters, check the config.
 
 
 # Version
