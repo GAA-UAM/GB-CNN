@@ -97,6 +97,7 @@ params = {'config': Namespace(seed=111,
                               additive_eta=1e-3,
                               patience=2)}
 
+model = GBCNN(config=get_config())
 model.set_params(**params)
 print(model.get_params())
 model.fit(X_train, Y_train, X_test, Y_test)
