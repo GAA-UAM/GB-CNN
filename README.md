@@ -25,31 +25,26 @@ Or use the [CITATION](CITATION.cff) to cite the package and codes.
 
 
 
-License
-=======
+# License
 
 The package is licensed under the [GNU Lesser General Public License v2.1](https://github.com/GAA-UAM/GBNN/blob/main/LICENSE).
 
-Development
------------
+# Development
 
 Our latest algorithm is available on the `main` branch of the repository.
 
 Related released versions are stored on [releases](https://github.com/GAA-UAM/GB-CNN/releases).
 
 # Version
------------
 
 0.0.1
 
 # Date-released
------------
 
 03.Feb.2023
 
 
 
-Wiki
-------------
+# Wiki
 
 For more information, please refer to the [model Wiki](https://github.com/GAA-UAM/GB-CNN/wiki).
