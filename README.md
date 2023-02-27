@@ -35,12 +35,6 @@ Development
 
 Our latest algorithm is available on the `main` branch of the repository.
 
-Contributing
-------------
-
-Issues can be reported.
-
-If you want to implement any new features, please have a discussion about it on the issue tracker or open a pull request.
 
 # Version
 
@@ -49,3 +43,10 @@ If you want to implement any new features, please have a discussion about it on 
 # Date-released
 
 03.Feb.2023
+
+
+
+Wiki
+------------
+
+For more information, please refer to the [model Wiki](https://github.com/GAA-UAM/GB-CNN/wiki).
