@@ -47,4 +47,4 @@ Related released versions are stored on [releases](https://github.com/GAA-UAM/GB
 
 # Wiki
 
-For more information, please refer to the [model Wiki](https://github.com/GAA-UAM/GB-CNN/wiki).
+For more information, please refer to the [Wiki](https://github.com/GAA-UAM/GB-CNN/wiki).
