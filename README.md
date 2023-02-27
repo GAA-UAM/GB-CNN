@@ -23,7 +23,7 @@ Please use the following bibtex for citing the paper in your research:
 ```
 Or use the [CITATION](CITATION.cff) to cite the package and codes.
 
-Paper version: 0.0.1
+
 
 License
 =======
@@ -35,12 +35,15 @@ Development
 
 Our latest algorithm is available on the `main` branch of the repository.
 
+Related released versions are stored on [releases](https://github.com/GAA-UAM/GB-CNN/releases).
 
 # Version
+-----------
 
 0.0.1
 
 # Date-released
+-----------
 
 03.Feb.2023
 
