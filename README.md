@@ -36,13 +36,12 @@ Our latest algorithm is available on the `main` branch of the repository.
 
 Related released versions are stored on [Releases](https://github.com/GAA-UAM/GB-CNN/releases).
 
-## Version
-
-0.0.1
 
 ## Date-released
-
 03.Feb.2023
 
 ## Date-updated
 27.Feb.2023
+
+## Version
+0.0.1
