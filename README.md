@@ -43,6 +43,6 @@ Related released versions are stored on [Releases](https://github.com/GAA-UAM/GB
 # Date-updated
 27.Feb.2023
 
-# Wiki
+# Documentation
 
 For more information, please refer to the [Wiki](https://github.com/GAA-UAM/GB-CNN/wiki).
