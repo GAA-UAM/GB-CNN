@@ -10,6 +10,7 @@ GB-CNN is the python library for working with Gradient Boosted - Convolutional N
 # Citing
 
 Please use the following BibTeX or download the [bib file](scholar.bib) for citing the paper in your research.
+
 Or use the [CITATION](CITATION.cff) to cite the package and codes.
 
 ```
