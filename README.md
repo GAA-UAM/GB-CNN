@@ -11,8 +11,6 @@ GB-CNN is the python library for working with Gradient Boosted - Convolutional N
 
 Please use the following BibTeX or download the [bib file](scholar.txt) for citing the paper in your research.
 
-**The paper title:** A Gradient Boosting Approach for Training Convolutional and Deep Neural Networks
-
 ```
 @article{emami2023gbcnn,
   title={A Gradient Boosting Approach for Training Convolutional and Deep Neural Networks},
