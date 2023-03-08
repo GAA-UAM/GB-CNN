@@ -36,8 +36,8 @@ class BaseEstimator(Params):
 
     def _layer_freezing(self, model):
         model.get_layer(model.layers[-2].name).trainable = False
-        assert model.get_layer(model.layers[-2].name).trainable == False, self.log_sh.error(
-            "The intermediate dense layer is not frozen!")
+        self.layers.append(model.get_layer(model.layers[-2].name))
+        assert model.get_layer(model.layers[-2].name).trainable == False, "The intermediate dense layer is not frozen!"
 
     def _optimizer(self, eta=1e-3, decay=False):
 
@@ -102,8 +102,9 @@ class BaseEstimator(Params):
         """Return the score of the GB-CNN model"""
 
     def _in_train_score(self, X, y):
-        pred = np.argmax(self._loss.raw_predictions_to_probs(
-            self.decision_function(X)), axis=1)
+        pred = self.decision_function(X)
+        if not type(self).__name__=='GBDNNRegressor':
+            pred = np.argmax(self._loss.raw_predictions_to_probs(pred), axis=1)
         y = [np.argmax(yy, axis=None, out=None) for yy in y]
         return np.mean(y == pred)
 
@@ -259,7 +260,7 @@ class BaseGBCNN(BaseEstimator):
 
             loss_mean = np.mean(self._loss(y, acum))
             self.log_fh.info(
-                "       Gradient Loss: {0:.5f}".format(loss_mean))
+                "       Gradient Cross-Entropy loss: {0:.5f}".format(loss_mean))
 
             if self.config.save_records:
                 self.g_history["acc_val"].append(
@@ -342,8 +343,10 @@ class BaseGBDNN(BaseEstimator):
                               decay=False)
 
         T = int(self.config.boosting_epoch/self.config.units)
-
+        self.log_fh.info("Training Dense Layers with Gradient Boosting")
         for epoch in range(T):
+
+            self.log_fh.info(f"Epoch: {epoch+1} out of {T}")
 
             residuals = self._loss.derive(y, acum)
             residuals = residuals.astype(np.float32)
@@ -364,7 +367,7 @@ class BaseGBDNN(BaseEstimator):
                                      verbose=False,
                                      callbacks=[es],
                                      )
-
+            self.log_sh.info(model.summary())
             self._layer_freezing(model=model)
 
             pred = model.predict(X)
@@ -372,8 +375,14 @@ class BaseGBDNN(BaseEstimator):
                 self._loss.newton_step(y, residuals, pred)
             acum = acum + rho * pred
 
+            self.log_fh.info("       Additive model-MSE: {0:.7f}".format(model.evaluate(X,
+                                                                                        residuals,
+                                                                                        verbose=0)[1]))
+
             loss_mean = np.mean(self._loss(y, acum))
-            self.g_history["loss_train"].append(loss_mean)
+            self.log_fh.info(
+                "       Gradient Loss: {0:.5f}".format(loss_mean))
+
             self._add(model, rho)
 
             if self.config.save_records:
