@@ -64,24 +64,9 @@ class GBDNNClassifier(BaseGBDNN):
 
 class GBDNNRegressor(BaseGBDNN):
 
-    def __init__(self,
-                 additive_epoch=10,
-                 additive_eta=1e-3,
-                 additive_unit=1,
-                 boosting_epoch=200,
-                 boosting_eta=0.1,
-                 batch_size=128,
-                 early_stopping=False,
-                 random_state=None):
-
-        super().__init__(additive_epoch,
-                         additive_eta,
-                         additive_unit,
-                         boosting_epoch,
-                         boosting_eta,
-                         batch_size,
-                         early_stopping,
-                         random_state)
+    def __init__(self, config):
+        
+        super().__init__(config)
 
     def _validate_y(self, y):
         self._loss = _losses.squared_loss()
