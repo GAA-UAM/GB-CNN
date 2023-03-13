@@ -29,23 +29,6 @@ class loss:
     def __call__(self, y, pred):
         """call"""
 
-
-class squared_loss(loss):
-    """ Squared loss for regression problems """
-
-    def model0(self, y):
-        return np.ones(1)*np.mean(y)
-
-    def derive(self, y, prev):
-        return y-prev
-
-    def newton_step(self, y, residuals, new_predictions):
-        return 1
-
-    def __call__(self, y, pred):
-        return (y-pred)**2
-
-
 class classification_loss(loss):
     """ Base class for classification losses """
 
