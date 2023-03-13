@@ -1,4 +1,4 @@
 from .gbcnn import GBCNN
-from .gbdnn import GBDNNClassifier, GBDNNRegressor
+from .gbdnn import GBDNNClassifier
 
-__all__ = ["GBCNN", "GBDNNClassifier", "GBDNNRegressor"]
+__all__ = ["GBCNN", "GBDNNClassifier"]
