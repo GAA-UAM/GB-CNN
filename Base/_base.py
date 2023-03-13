@@ -103,8 +103,7 @@ class BaseEstimator(Params):
 
     def _in_train_score(self, X, y):
         pred = self.decision_function(X)
-        if not type(self).__name__=='GBDNNRegressor':
-            pred = np.argmax(self._loss.raw_predictions_to_probs(pred), axis=1)
+        pred = np.argmax(self._loss.raw_predictions_to_probs(pred), axis=1)
         y = [np.argmax(yy, axis=None, out=None) for yy in y]
         return np.mean(y == pred)
 
