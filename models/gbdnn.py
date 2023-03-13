@@ -60,34 +60,3 @@ class GBDNNClassifier(BaseGBDNN):
         y = y.astype(np.int32)
         score = y == self.predict(X)
         return np.mean(score)
-
-
-class GBDNNRegressor(BaseGBDNN):
-
-    def __init__(self, config):
-        
-        super().__init__(config)
-
-    def _validate_y(self, y):
-        self._loss = _losses.squared_loss()
-        self.n_classes = y.shape[1] if len(y.shape) == 2 else 1
-        return y
-
-    def predict(self, X):
-        return self.decision_function(X)
-
-    def predict_stage(self, X):
-        preds = np.ones_like(self._models[0].predict(X))*self.intercept
-
-        for model, step in zip(self._models, self.steps):
-            preds += model.predict(X) * step
-            yield preds
-
-    def score(self, X, y):
-        """Returns the average of RMSE of all outputs."""
-        X = X.astype(np.float32)
-        y = y.astype(np.float32)
-        pred = self.predict(X)
-        output_errors = np.mean((y - pred) ** 2, axis=0)
-
-        return np.mean(np.sqrt(output_errors))
