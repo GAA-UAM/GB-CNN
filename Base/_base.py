@@ -37,7 +37,8 @@ class BaseEstimator(Params):
     def _layer_freezing(self, model):
         model.get_layer(model.layers[-2].name).trainable = False
         self.layers.append(model.get_layer(model.layers[-2].name))
-        assert model.get_layer(model.layers[-2].name).trainable == False, "The intermediate dense layer is not frozen!"
+        assert model.get_layer(
+            model.layers[-2].name).trainable == False, "The intermediate dense layer is not frozen!"
 
     def _optimizer(self, eta=1e-3, decay=False):
 
@@ -69,6 +70,7 @@ class BaseEstimator(Params):
 
     def _lists_initialization(self):
         self.g_history = {"loss_train": [],
+                          "loss_test": [],
                           "acc_train": [],
                           "acc_val": []}
         self._models = []
@@ -114,6 +116,7 @@ class BaseEstimator(Params):
             return path
 
         archives = [('loss.txt', self.g_history["loss_train"]),
+                    ('loss_test.txt', self.g_history["loss_test"]),
                     ('acc_train.txt', self.g_history["acc_train"]),
                     ('acc_val.txt', self.g_history["acc_val"]),
                     (f'epoch_{str(epoch)}_additive_training_loss.txt',
@@ -185,6 +188,12 @@ class BaseGBCNN(BaseEstimator):
         y = self._validate_y(y)
         self._check_params()
 
+        if self._validation_data:
+            val_data = (x_test, y_test)
+            acum_test = np.ones_like(y_test) * self._loss.model0(y_test)
+        else:
+            val_data = (X, y)
+
         # _loss = multi_class_loss()
         self.intercept = self._loss.model0(y)
 
@@ -235,7 +244,6 @@ class BaseGBCNN(BaseEstimator):
 
             self.log_sh.info(model.summary())
 
-            val_data = (x_test, y_test) if self._validation_data else (X, y)
             self.history = model.fit(x=self._data_generator(X, residuals),
                                      epochs=self.config.additive_epoch,
                                      use_multiprocessing=False,
@@ -262,10 +270,14 @@ class BaseGBCNN(BaseEstimator):
                 "       Gradient Cross-Entropy loss: {0:.5f}".format(loss_mean))
 
             if self.config.save_records:
+                pred_test = model.predict(x_test)
+                acum_test = acum_test + rho * pred_test
                 self.g_history["acc_val"].append(
                     self._in_train_score(x_test, y_test))
                 self.g_history["acc_train"].append(self._in_train_score(X, y))
                 self.g_history["loss_train"].append(loss_mean)
+                loss_mean_test = np.mean(self._loss(y_test, acum_test))
+                self.g_history["loss_test"].append(loss_mean_test)
                 self._save_records(epoch)
 
 
