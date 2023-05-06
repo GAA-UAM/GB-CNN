@@ -1,4 +1,4 @@
-""" Base Class of Gradient Boosted - Convolutional Neural Network """
+""" Base Class of Gradient Boosted - Convolutional and Neural Network """
 
 # Author: Seyedsaman Emami
 # Author: Gonzalo Martínez-Muñoz
@@ -340,9 +340,17 @@ class BaseGBDNN(BaseEstimator):
     def fit(self, X, y, x_test=None, y_test=None):
 
         X = X.astype(np.float32)
-
         y = self._validate_y(y)
         self._check_params()
+
+        if self._validation_data:
+            y_test = self._validate_y(y_test)
+            val_data = (x_test, y_test)
+            acum_test = np.ones_like(y_test) * self._loss.model0(y_test)
+        else:
+            val_data = (X, y)
+
+
         self._lists_initialization()
 
         self.intercept = self._loss.model0(y)
@@ -370,7 +378,7 @@ class BaseGBDNN(BaseEstimator):
                           optimizer=opt,
                           metrics=[tf.keras.metrics.MeanSquaredError()])
 
-            val_data = (x_test, y_test) if self._validation_data else (X, y)
+            
             self.history = model.fit(X, residuals,
                                      batch_size=self.config.batch,
                                      epochs=self.config.additive_epoch,
@@ -397,8 +405,12 @@ class BaseGBDNN(BaseEstimator):
             self._add(model, rho)
 
             if self.config.save_records:
+                pred_test = model.predict(x_test)
+                acum_test = acum_test + rho * pred_test
                 self.g_history["acc_val"].append(
                     self._in_train_score(x_test, y_test))
                 self.g_history["acc_train"].append(self._in_train_score(X, y))
                 self.g_history["loss_train"].append(loss_mean)
+                loss_mean_test = np.mean(self._loss(y_test, acum_test))
+                self.g_history["loss_test"].append(loss_mean_test)
                 self._save_records(epoch)
