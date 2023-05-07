@@ -194,7 +194,6 @@ class BaseGBCNN(BaseEstimator):
         else:
             val_data = (X, y)
 
-        # _loss = multi_class_loss()
         self.intercept = self._loss.model0(y)
 
         self._lists_initialization()
@@ -323,7 +322,9 @@ class BaseGBDNN(BaseEstimator):
         model.add(layer)
 
         # Adding dropout layer after the last hidden layer
-        # model.add(keras.layers.Dropout(rate=0.1))
+
+        model.add(tf.keras.layers.BatchNormalization())
+        model.add(tf.keras.layers.Dropout(0.1))
 
         try:
             model.add(flatten_layer)
