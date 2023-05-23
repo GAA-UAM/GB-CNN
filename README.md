@@ -14,12 +14,15 @@ Please use the following BibTeX or download the [bib file](scholar.bib) for citi
 Or use the [CITATION](CITATION.cff) to cite the package and codes.
 
 ```
-@article{emami2023gbcnn,
-  title={A Gradient Boosting Approach for Training Convolutional and Deep Neural Networks},
+@ARTICLE{10130606,
   author={Emami, Seyedsaman and Martínez-Muñoz, Gonzalo},
-  journal={https://arxiv.org/abs/2302.11327},
-  year={2023}
-}
+  journal={IEEE Open Journal of Signal Processing}, 
+  title={A Gradient Boosting Approach for Training Convolutional and Deep Neural Networks}, 
+  year={2023},
+  volume={},
+  number={},
+  pages={1-9},
+  doi={10.1109/OJSP.2023.3279011}}
 ```
 
 # License
