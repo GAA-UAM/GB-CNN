@@ -19,10 +19,10 @@ Or use the [CITATION](CITATION.cff) to cite the package and codes.
   journal={IEEE Open Journal of Signal Processing}, 
   title={A Gradient Boosting Approach for Training Convolutional and Deep Neural Networks}, 
   year={2023},
-  volume={},
-  number={},
-  pages={1-9},
+  volume={4},
+  pages={313-321},
   doi={10.1109/OJSP.2023.3279011}}
+
 ```
 
 # License
